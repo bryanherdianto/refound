@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="ReFound API",
-    description="Backend for the ReFound donation platform — connecting donors, donees, and IoT devices.",
+    description="Backend for the ReFound donation platform - connecting donors, donees, and IoT devices.",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -40,7 +40,6 @@ app.add_middleware(
     allow_origins=[
         settings.FRONTEND_URL,
         "http://localhost:3000",
-        "http://localhost:3001",
     ],
     allow_credentials=True,
     allow_methods=["*"],

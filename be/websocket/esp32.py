@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -27,7 +27,7 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
 
     await websocket.accept()
     _esp32_ws = websocket
-    print("🔌 ESP32-CAM Connected!")
+    print("ESP32-CAM Connected!")
 
     try:
         # Send initial capture command
@@ -65,7 +65,7 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
                             "condition": analysis.get("condition", "Unverified"),
                             "size": "small",
                             "status": "waiting",
-                            "detected_at": datetime.now(datetime.timezone.utc),
+                            "detected_at": datetime.now(timezone.utc),
                             "donor_name": None,
                             "donor_email": None,
                             "front_image": None,
@@ -101,7 +101,7 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
                     else:
                         print("DEPOSITED_OK received but no pending item")
 
-                    # Ready for next item — send CAPTURE again
+                    # Ready for next item - send CAPTURE again
                     await asyncio.sleep(2)
                     await websocket.send_text("CAPTURE")
                     print("Sent CAPTURE command for next item")

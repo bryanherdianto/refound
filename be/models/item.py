@@ -1,5 +1,5 @@
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field, EmailStr
@@ -131,7 +131,7 @@ class ItemResponse(BaseModel):
             image=doc.get("image", ""),
             frontImage=doc.get("front_image"),
             backImage=doc.get("back_image"),
-            detectedAt=doc.get("detected_at", datetime.now(datetime.timezone.utc)),
+            detectedAt=doc.get("detected_at", datetime.now(timezone.utc)),
             status=doc.get("status", "waiting"),
             condition=doc.get("condition", ""),
             category=doc.get("category", ""),
@@ -152,7 +152,6 @@ class DonateRequest(BaseModel):
     donor_name: str
     donor_email: EmailStr
     agreed_to_redistribution: bool = False
-    # Small‑item text fields (optional)
     description: Optional[str] = None
     category: Optional[str] = None
 
