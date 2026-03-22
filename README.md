@@ -21,64 +21,59 @@ Institutions often unknowingly contribute to the global waste crisis because los
 
 ## What It Does
 
-### Flow 1: Donation Process (Donor)
+**ReFound** is a smart donation and redistribution platform that connects donors and recipients in real time.
 
-**Goal:** Onboard items with automated consent for social redistribution.
+**How it works (user perspective):**
 
-1. **Trigger:** User scans QR code -> Redirect to `/donate`.
+1. **Users scan a QR code** at a ReFound bin.
+2. **Drop off their item** in under a few minutes.
+3. **AI verifies item quality** using cameras and uploaded images.
+4. **Approved items are listed** on the web platform.
+5. **Other users browse, reserve, and schedule pickup**.
 
-2. **Item Type Logic:**
-   - `Small Item`: Description + Category text input.
-   - `Big Item`: Requires `photo_front` and `photo_back` uploads.
+## How I built it
 
-3. **Consent:** Mandatory checkbox: `agreed_to_redistribution` (Boolean).
-   - _Label:_ "I agree that if my item isn't claimed within 7 days, it will be donated to a local institution (orphanage/nursing home)."
+### **Smart Bin (Hardware Layer)**
 
-4. **Auth:** Clerk `useUser()` hook to pull `fullName` and `primaryEmailAddress`.
+- Built using **IoT devices (ESP32-CAM & Arduino)** to capture and assess items at smart donation bins.
+- **Sends real-time data** to the backend for processing.
 
-5. **Success:** - Write to DB with `status: "AVAILABLE"`.
-   - Trigger `issueReward()` (Digital badge/points).
+### **Backend & Data Layer**
 
-### Flow 2: Claiming Process (Donee)
+- **FastAPI** handles API requests, WebSocket communication, and core system logic.
+- **MongoDB & AWS S3** serve as the primary data and image storage layers.
 
-**Goal:** Peer-to-peer item matching with time-sensitive urgency.
+### **AI Integration**
 
-1. **Discovery:** Browse Gallery where `status == "AVAILABLE"`.
-   - **UI:** Countdown timer logic: `createdAt + 7 days`.
+- **Google Gemini Pro Vision** assists with automated **item recognition**, **category classification**, and **quality assessment**.
 
-2. **Selection:** User clicks "Claim" -> Update `item.status` to `"CLAIMED"`.
+### **Frontend Platform**
 
-3. **Fulfillment:** - `Delivery`: Input `shipping_address`.
-   - `Pick-up Point`: Select from `predefined_locations` (e.g., "Canteen").
+- Built with **Next.js**, allowing users to browse verified items, reserve them, and manage their donation history.
+- **Google Maps API** enables location-based discovery and pickup coordination.
 
-4. **Tracking:** User Dashboard displays: `Pending` -> `Ready for Pick-up` -> `Received`.
+## Challenges I ran into
 
-### Flow 3: Administrative Redistribution (Admin)
+- **System Integration:** Connecting multiple technologies (**IoT, Backend, AI, and Frontend**) smoothly under a tight **24-hour time constraint**.
+- **Hardware Handshaking:** Troubleshooting **WebSocket connections** and real-time data synchronization between physical bins and the cloud.
+- **Production Readiness:** Completing a functioning end-to-end product and a presentation pitch within a hackathon timeframe.
 
-**Goal:** Automated management of stale inventory via Geolocation.
+## Accomplishments that I'm proud of
 
-1. **Expiry Logic:** Cron job identifies items where `status == "AVAILABLE"` AND `age > 7 days`.
-   - Action: Update to `status: "EXPIRED"`.
+- **Functional End-to-End Product:** Successfully built a full-stack system that solves a tangible real-world problem.
+- **Impactful Innovation:** Developed a real-world solution addressing **sustainability** and **resource accessibility**.
 
-2. **Admin Guard:** Route `/admin` restricted to `user.publicMetadata.role === "admin"`.
+## What I learned
 
-3. **Geolocation Feature:**
-   - **API:** Google Places `nearbySearch` (types: `orphanage`, `nursing_home`).
-   - **UI:** Interactive Map with pins.
-
-4. **Action:** Click pin -> View `name`, `address`, `formatted_phone_number`.
-
-5. **Assignment:** - Admin selects expired items -> Clicks "Assign to [Institution Name]".
-   - Update `item.status` to `"REDIRECTED"`.
-
-6. **Notification:** Trigger automated email to donor: _"Your item has found a new home at [Institution Name]!"_
-
-7. **Finalization:** Admin marks as `"COMPLETED"` once batch is dispatched.
+- **Cross-Domain Integration:** Harmonizing technologies across different domains into one cohesive, automated system.
+- **Technical Resilience:** Adapting quickly when facing hardware constraints and networking challenges.
+- **Agile Scoping:** Managing time effectively by focusing on **problem scoping** and defining core features clearly.
 
 ## What's Next for ReFound
 
-- **Enhanced IoT Camera**: Upgrade the camera module to replace the current low-quality optics.
-- **Upgraded Donation Bin**: Increase the physical capacity of the bin to accommodate a larger volume of items.
-- **Protective Enclosures**: Design and build durable housing for the camera and servo to ensure weather resistance and durability.
-- **Improved Security**: Implement anti-vandalism and anti-theft measures to protect the physical bin and its electronic components.
-- **Robust Backend Infrastructure**: Scale the backend system to efficiently handle high-resolution image data and increased user traffic.
+- **Enhanced IoT Optics**: Upgrade the camera module to replace current low-resolution sensors for better AI accuracy.
+- **Scaleable Capacity**: Increase the physical capacity of the bins to accommodate a larger volume of donations.
+- **Protective Enclosures**: Design durable, **weather-resistant housing** for the camera and servo components.
+- **Advanced Security**: Implement anti-vandalism measures and secure authentication for item drop-offs.
+- **Infrastructure Scaling**: Optimize the backend to handle high-resolution data and increased concurrent user traffic.
+- **Public Expansion**: ReFound aims to expand beyond universities into **airports, transit hubs, and public stations**, maximizing social impact and resource-sharing for everyone.
