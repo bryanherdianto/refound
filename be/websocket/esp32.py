@@ -27,7 +27,7 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
 
     await websocket.accept()
     _esp32_ws = websocket
-    print("🔌 ESP32 connected via WebSocket")
+    print("🔌 ESP32-CAM Connected!")
 
     try:
         # Send initial capture command
@@ -35,12 +35,17 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
         print("Sent CAPTURE command to ESP32")
 
         while True:
+            # Receive data from ESP32
             message = await websocket.receive()
+
+            if message["type"] == "websocket.disconnect":
+                print("ESP32 Disconnected (message)")
+                break
 
             if "bytes" in message and message["bytes"]:
                 # Binary message = camera image from ESP32
                 image_bytes = message["bytes"]
-                print(f"Received image from ESP32 ({len(image_bytes)} bytes)")
+                print(f"Image Received from ESP32 ({len(image_bytes)} bytes)")
 
                 try:
                     # Analyze with Gemini
@@ -58,10 +63,9 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
                             "image": image_url,
                             "category": analysis.get("category", "Other"),
                             "condition": analysis.get("condition", "Unverified"),
-                            "ocr_confidence": analysis.get("confidence", 0.0),
                             "size": "small",
                             "status": "waiting",
-                            "detected_at": datetime.utcnow(),
+                            "detected_at": datetime.now(datetime.timezone.utc),
                             "donor_name": None,
                             "donor_email": None,
                             "front_image": None,
@@ -84,7 +88,7 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
 
             elif "text" in message and message["text"]:
                 text = message["text"].strip()
-                print(f"ESP32 text message: {text}")
+                print(f"I [ESP32 Message]: {text}")
 
                 if text == "DEPOSITED_OK":
                     # Item has been physically inserted into the box
@@ -103,8 +107,9 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
                     print("Sent CAPTURE command for next item")
 
     except WebSocketDisconnect:
-        print("ESP32 disconnected")
-        _esp32_ws = None
+        print("ESP32 Disconnected (graceful)")
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        print(f"ESP32 Connection Error: {e}")
+    finally:
+        print("Cleaning up connection")
         _esp32_ws = None

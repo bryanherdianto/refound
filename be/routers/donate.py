@@ -46,7 +46,6 @@ async def donate_item(
         "front_image": None,
         "back_image": None,
         "condition": "",
-        "ocr_confidence": 0.0,
         "category": category or "",
         "claimed_by": None,
         "assigned_institution": None,
@@ -78,14 +77,12 @@ async def donate_item(
         item_doc["name"] = analysis.get("name", "Donated Item")
         item_doc["category"] = analysis.get("category", category or "Other")
         item_doc["condition"] = analysis.get("condition", "Unverified")
-        item_doc["ocr_confidence"] = analysis.get("confidence", 0.5)
 
     else:
         # Small items use text description
         item_doc["name"] = description or "Small Donation"
         item_doc["category"] = category or "Other"
         item_doc["condition"] = "Eligible for reuse"
-        item_doc["ocr_confidence"] = 1.0  # User-provided, no AI needed
 
     # Insert into MongoDB
     result = await collection.insert_one(item_doc)

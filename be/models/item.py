@@ -69,7 +69,6 @@ class ItemInDB(BaseModel):
     detected_at: datetime = Field(default_factory=datetime.utcnow)
     status: ItemStatus = ItemStatus.waiting
     condition: str = ""
-    ocr_confidence: float = 0.0
     category: str = ""
     size: ItemSize = ItemSize.small
     donor_name: Optional[str] = None
