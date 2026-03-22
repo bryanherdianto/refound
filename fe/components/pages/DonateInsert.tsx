@@ -3,25 +3,55 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { Package, Loader2, CheckCircle, Sparkles } from "lucide-react";
+import {
+	Package,
+	Loader2,
+	CheckCircle,
+	Sparkles,
+	XCircle,
+} from "lucide-react";
+import { useDonation } from "@/contexts/DonationContext";
+import { esp32Capture } from "@/lib/api";
+import { toast } from "sonner";
 
-type InsertStatus = "waiting" | "detecting" | "detected";
+type InsertStatus = "waiting" | "detecting" | "detected" | "rejected";
 
 export function DonateInsert() {
 	const router = useRouter();
-	const size = "small";
+	const { size, setEspItemId } = useDonation();
 
 	const [status, setStatus] = useState<InsertStatus>("waiting");
+	const [detectedName, setDetectedName] = useState("");
 
-	const simulateInsertion = () => {
+	const handleInsert = async () => {
 		setStatus("detecting");
 
-		setTimeout(() => {
-			setStatus("detected");
-			setTimeout(() => {
-				router.push(`/donate/form?size=${size}`);
-			}, 2000);
-		}, 3000);
+		try {
+			const result = await esp32Capture();
+
+			if (result.success && result.accepted) {
+				setDetectedName(result.name || "Item");
+				setEspItemId(result.item_id || null);
+				setStatus("detected");
+				toast.success(`Detected: ${result.name}`);
+
+				// Navigate to form after a brief celebration
+				setTimeout(() => {
+					router.push(`/donate/form?size=${size}`);
+				}, 2000);
+			} else if (result.success && !result.accepted) {
+				setStatus("rejected");
+				toast.error(result.reason || "Item was not accepted");
+			} else {
+				setStatus("waiting");
+				toast.error(result.error || "Capture failed. Please try again.");
+			}
+		} catch (error) {
+			setStatus("waiting");
+			const msg =
+				error instanceof Error ? error.message : "Connection error";
+			toast.error(msg);
+		}
 	};
 
 	return (
@@ -71,7 +101,7 @@ export function DonateInsert() {
 										Detecting Item...
 									</h2>
 									<p className="text-muted-foreground">
-										AI is analyzing your donation
+										ESP32 camera is capturing and AI is analyzing
 									</p>
 								</div>
 							</>
@@ -84,10 +114,27 @@ export function DonateInsert() {
 								</div>
 								<div>
 									<h2 className="text-xl md:text-2xl font-semibold text-[#7b9e87] mb-2">
-										Item Received!
+										{detectedName} Received!
 									</h2>
 									<p className="text-muted-foreground">
 										Moving to next step...
+									</p>
+								</div>
+							</>
+						)}
+
+						{status === "rejected" && (
+							<>
+								<div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-red-100">
+									<XCircle className="w-12 h-12 text-red-500" />
+								</div>
+								<div>
+									<h2 className="text-xl md:text-2xl font-semibold text-red-600 mb-2">
+										Item Not Accepted
+									</h2>
+									<p className="text-muted-foreground">
+										The item doesn&apos;t appear eligible for donation. Please
+										try a different item.
 									</p>
 								</div>
 							</>
@@ -96,7 +143,7 @@ export function DonateInsert() {
 				</div>
 
 				{/* Instructions */}
-				{status === "waiting" && (
+				{(status === "waiting" || status === "rejected") && (
 					<div className="space-y-4 mb-8">
 						<div className="flex items-center gap-2 mb-4">
 							<div className="w-8 h-8 bg-[#e8f4ee] rounded-lg flex items-center justify-center">
@@ -128,7 +175,7 @@ export function DonateInsert() {
 									<span className="text-xs font-bold text-[#7b9e87]">3</span>
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Wait for AI detection to complete
+									Click the button below and wait for AI detection
 								</p>
 							</div>
 						</div>
@@ -136,16 +183,18 @@ export function DonateInsert() {
 				)}
 
 				{/* CTA */}
-				{status === "waiting" && (
+				{(status === "waiting" || status === "rejected") && (
 					<div className="space-y-4">
 						<Button
 							size="lg"
 							className="w-full h-14 text-base font-semibold rounded-xl bg-linear-to-r from-[#7b9e87] to-[#6a8a75] text-white border-0 shadow-lg hover:shadow-xl transition-all"
-							onClick={simulateInsertion}
+							onClick={handleInsert}
 						>
 							<span className="flex items-center gap-2">
 								<Package className="w-5 h-5" />
-								I&apos;ve Inserted the Item
+								{status === "rejected"
+									? "Try Again"
+									: "I've Inserted the Item"}
 							</span>
 						</Button>
 						<p className="text-xs text-center text-muted-foreground">
@@ -159,7 +208,7 @@ export function DonateInsert() {
 					<div className="text-center">
 						<div className="inline-flex items-center gap-2 px-4 py-2 bg-[#e8f4ee] text-[#7b9e87] rounded-full text-sm font-medium">
 							<span className="w-2 h-2 bg-[#7b9e87] rounded-full animate-pulse"></span>
-							Processing...
+							ESP32 capturing &amp; analyzing...
 						</div>
 					</div>
 				)}

@@ -10,11 +10,14 @@ import {
 	Sparkles,
 	Lightbulb,
 } from "lucide-react";
+import { useDonation } from "@/contexts/DonationContext";
 
 export function DonateSize() {
 	const router = useRouter();
+	const { setSize } = useDonation();
 
 	const handleSelectSize = (size: "small" | "big") => {
+		setSize(size);
 		if (size === "small") {
 			router.push("/donate/insert?size=small");
 		} else {

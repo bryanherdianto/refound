@@ -16,9 +16,14 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import confetti from "canvas-confetti";
+import { useDonation } from "@/contexts/DonationContext";
 
 export function DonateReward() {
 	const router = useRouter();
+	const { createdItem, reset } = useDonation();
+
+	const itemName = createdItem?.name || "Your Item";
+	const rewardPoints = 50;
 
 	useEffect(() => {
 		// Fire confetti with green color palette
@@ -79,7 +84,7 @@ export function DonateReward() {
 							<p className="text-white/80 mb-2 text-sm uppercase tracking-wider font-medium">
 								You&apos;ve earned
 							</p>
-							<p className="text-4xl md:text-5xl font-bold">50 Points</p>
+							<p className="text-4xl md:text-5xl font-bold">{rewardPoints} Points</p>
 						</div>
 						<div className="flex items-center justify-center gap-1">
 							{[...Array(5)].map((_, i) => (
@@ -111,7 +116,7 @@ export function DonateReward() {
 						<div className="flex justify-between text-sm">
 							<span className="text-muted-foreground">Processing</span>
 							<span className="font-medium text-[#1a365d]">
-								AI Detection Complete
+								{itemName}
 							</span>
 						</div>
 						<div className="flex justify-between text-sm">
@@ -122,7 +127,7 @@ export function DonateReward() {
 						</div>
 						<div className="flex justify-between text-sm">
 							<span className="text-muted-foreground">Reward Points</span>
-							<span className="font-medium text-[#7b9e87]">+50 Points</span>
+							<span className="font-medium text-[#7b9e87]">+{rewardPoints} Points</span>
 						</div>
 					</div>
 				</Card>
@@ -140,7 +145,7 @@ export function DonateReward() {
 						<div className="w-10 h-10 bg-[#e8f4ee] rounded-xl flex items-center justify-center mx-auto mb-2">
 							<Star className="w-5 h-5 text-[#7b9e87]" />
 						</div>
-						<p className="text-2xl md:text-4xl font-bold text-[#1a365d]">50</p>
+						<p className="text-2xl md:text-4xl font-bold text-[#1a365d]">{rewardPoints}</p>
 						<p className="text-xs text-muted-foreground">Points Earned</p>
 					</Card>
 				</div>
@@ -165,7 +170,10 @@ export function DonateReward() {
 					<Button
 						size="lg"
 						className="w-full h-14 text-base font-semibold rounded-xl bg-linear-to-r from-[#7b9e87] to-[#6a8a75] text-white border-0 shadow-lg hover:shadow-xl transition-all"
-						onClick={() => router.push("/items")}
+						onClick={() => {
+							reset();
+							router.push("/items");
+						}}
 					>
 						Browse Available Items
 					</Button>
@@ -173,7 +181,10 @@ export function DonateReward() {
 						variant="outline"
 						size="lg"
 						className="w-full h-12 text-base font-medium rounded-xl border-2 border-[#e8f4ee] hover:border-[#7b9e87] hover:bg-[#e8f4ee] text-[#1a365d]"
-						onClick={() => router.push("/donate")}
+						onClick={() => {
+							reset();
+							router.push("/donate");
+						}}
 					>
 						<RotateCcw className="w-4 h-4 mr-2" />
 						Donate Another Item

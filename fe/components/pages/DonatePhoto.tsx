@@ -6,9 +6,11 @@ import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { Camera, CheckCircle, Sparkles, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
+import { useDonation } from "@/contexts/DonationContext";
 
 export function DonatePhoto() {
 	const router = useRouter();
+	const { setFrontPhoto, setBackPhoto } = useDonation();
 	const size = "big";
 
 	const [frontImage, setFrontImage] = useState<string | null>(null);
@@ -23,6 +25,14 @@ export function DonatePhoto() {
 		input.onchange = (e) => {
 			const file = (e.target as HTMLInputElement).files?.[0];
 			if (file) {
+				// Store the File object in context for API upload
+				if (side === "front") {
+					setFrontPhoto(file);
+				} else {
+					setBackPhoto(file);
+				}
+
+				// Also create a preview URL for display
 				const reader = new FileReader();
 				reader.onload = (event) => {
 					if (side === "front") {

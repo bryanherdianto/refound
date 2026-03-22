@@ -4,10 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { ItemCard } from "@/components/ItemCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockItems } from "@/data/mockData";
 import { DonationItem } from "@/types/donation";
 import {
-	ArrowLeft,
 	Search,
 	PackageOpen,
 	ArrowDownWideNarrow,
@@ -23,14 +21,34 @@ export function Items() {
 	const [filter, setFilter] = useState<FilterType>("all");
 	const [sort, setSort] = useState<SortType>("newest");
 	const [searchQuery, setSearchQuery] = useState("");
-	const [items, setItems] = useState<DonationItem[]>(mockItems);
+	const [items, setItems] = useState<DonationItem[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
 
-	// Simulate real-time updates
+	// Fetch items from MongoDB via FastAPI
 	useEffect(() => {
-		const interval = setInterval(() => {
-			setItems([...mockItems]);
-		}, 60000);
+		const fetchItems = async () => {
+			try {
+				const response = await fetch("http://localhost:8000/api/items");
+				if (!response.ok) throw new Error("Failed to fetch");
+				const data = await response.json();
 
+				// Ensure dates are actual Date objects
+				const formattedData = data.map((item: any) => ({
+					...item,
+					detectedAt: new Date(item.detectedAt),
+				}));
+
+				setItems(formattedData);
+			} catch (error) {
+				console.error("Error fetching items from MongoDB:", error);
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		fetchItems();
+		// Refresh every 15 seconds to catch new ESP32 captures
+		const interval = setInterval(fetchItems, 15000);
 		return () => clearInterval(interval);
 	}, []);
 
@@ -170,7 +188,14 @@ export function Items() {
 				</div>
 
 				{/* Items Grid */}
-				{filteredItems.length > 0 ? (
+				{isLoading ? (
+					<div className="flex flex-col items-center justify-center py-20">
+						<div className="h-10 w-10 animate-spin rounded-full border-4 border-[#7b9e87] border-t-transparent shadow-lg shadow-[#7b9e87]/10"></div>
+						<p className="mt-4 text-[#1a365d] font-medium animate-pulse">
+							Syncing with MongoDB...
+						</p>
+					</div>
+				) : filteredItems.length > 0 ? (
 					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-20">
 						{filteredItems.map((item) => (
 							<ItemCard key={item.id} item={item} />

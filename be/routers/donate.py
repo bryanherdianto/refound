@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from bson import ObjectId
 from fastapi import APIRouter, Form, UploadFile, File, HTTPException
 from typing import Optional
 
@@ -89,3 +90,42 @@ async def donate_item(
     item_doc["_id"] = result.inserted_id
 
     return ItemResponse.from_db(item_doc)
+
+
+@router.patch("/{item_id}/donor", response_model=ItemResponse)
+async def update_donor_info(
+    item_id: str,
+    donor_name: str = Form(...),
+    donor_email: str = Form(...),
+    agreed_to_redistribution: bool = Form(False),
+):
+    """
+    Update an existing item with donor information.
+
+    Called after the ESP32 capture flow creates the item (without donor info).
+    The frontend sends the donor's Clerk identity to complete the record.
+    """
+    collection = get_items_collection()
+
+    try:
+        oid = ObjectId(item_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid item ID format")
+
+    item = await collection.find_one({"_id": oid})
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    await collection.update_one(
+        {"_id": oid},
+        {
+            "$set": {
+                "donor_name": donor_name,
+                "donor_email": donor_email,
+                "agreed_to_redistribution": agreed_to_redistribution,
+            }
+        },
+    )
+
+    updated = await collection.find_one({"_id": oid})
+    return ItemResponse.from_db(updated)

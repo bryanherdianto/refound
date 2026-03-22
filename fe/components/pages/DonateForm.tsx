@@ -2,29 +2,76 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ShieldCheck, Heart } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ShieldCheck, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { SignInButton, useUser, useAuth } from "@clerk/nextjs";
+import { useDonation } from "@/contexts/DonationContext";
+import { donateSmallItem, donateBigItem, updateDonorInfo } from "@/lib/api";
 
 export function DonateForm() {
 	const router = useRouter();
-	const searchParams = useSearchParams();
 	const { user, isLoaded } = useUser();
 	const { isSignedIn } = useAuth();
-	const size = searchParams.get("size") || "small";
+	const {
+		size,
+		frontPhoto,
+		backPhoto,
+		description,
+		category,
+		agreedToRedistribution,
+		setCreatedItem,
+		espItemId,
+	} = useDonation();
 
 	const [loading, setLoading] = useState(false);
 
-	const handleComplete = () => {
-		setLoading(true);
+	const handleComplete = async () => {
+		if (!user) return;
 
-		// Simulate finalization
-		setTimeout(() => {
-			setLoading(false);
-			toast.success("Donation logic linked to account!");
+		setLoading(true);
+		try {
+			const donorName = user.fullName || user.username || "Anonymous";
+			const donorEmail =
+				user.primaryEmailAddress?.emailAddress || "unknown@example.com";
+
+			let createdItem;
+
+			// Check if we already have an item ID from the ESP32 hardware capture
+			if (espItemId) {
+				createdItem = await updateDonorInfo(espItemId, {
+					donorName,
+					donorEmail,
+					agreedToRedistribution,
+				});
+			} else if (size === "big" && frontPhoto && backPhoto) {
+				createdItem = await donateBigItem({
+					donorName,
+					donorEmail,
+					agreedToRedistribution,
+					photoFront: frontPhoto,
+					photoBack: backPhoto,
+				});
+			} else {
+				createdItem = await donateSmallItem({
+					donorName,
+					donorEmail,
+					agreedToRedistribution,
+					description: description || undefined,
+					category: category || undefined,
+				});
+			}
+
+			setCreatedItem(createdItem);
+			toast.success("Donation registered successfully!");
 			router.push("/donate/reward");
-		}, 1500);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Something went wrong";
+			toast.error(message);
+		} finally {
+			setLoading(false);
+		}
 	};
 
 	if (!isLoaded)
