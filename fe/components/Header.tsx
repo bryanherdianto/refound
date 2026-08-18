@@ -4,14 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import {
-	ClerkProvider,
 	SignInButton,
 	SignUpButton,
 	Show,
 	UserButton,
 } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 const navigation = [
 	{ name: "Browse Items", href: "/items" },
@@ -33,8 +32,6 @@ export function Header() {
 		window.addEventListener("scroll", handleScroll);
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
-
-	const isHomePage = pathname === "/";
 
 	return (
 		<header

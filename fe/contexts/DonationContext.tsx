@@ -17,8 +17,6 @@ interface DonationState {
 	size: ItemSize;
 	frontPhoto: File | null;
 	backPhoto: File | null;
-	description: string;
-	category: string;
 	agreedToRedistribution: boolean;
 	/** The item returned from the API after a successful donation */
 	createdItem: DonationItem | null;
@@ -30,8 +28,6 @@ interface DonationContextValue extends DonationState {
 	setSize: (size: ItemSize) => void;
 	setFrontPhoto: (file: File | null) => void;
 	setBackPhoto: (file: File | null) => void;
-	setDescription: (desc: string) => void;
-	setCategory: (cat: string) => void;
 	setAgreedToRedistribution: (agreed: boolean) => void;
 	setCreatedItem: (item: DonationItem | null) => void;
 	setEspItemId: (id: string | null) => void;
@@ -46,8 +42,6 @@ const defaultState: DonationState = {
 	size: "small",
 	frontPhoto: null,
 	backPhoto: null,
-	description: "",
-	category: "",
 	agreedToRedistribution: false,
 	createdItem: null,
 	espItemId: null,
@@ -74,14 +68,6 @@ export function DonationProvider({ children }: { children: ReactNode }) {
 		(file: File | null) => setState((s) => ({ ...s, backPhoto: file })),
 		[]
 	);
-	const setDescription = useCallback(
-		(description: string) => setState((s) => ({ ...s, description })),
-		[]
-	);
-	const setCategory = useCallback(
-		(category: string) => setState((s) => ({ ...s, category })),
-		[]
-	);
 	const setAgreedToRedistribution = useCallback(
 		(agreedToRedistribution: boolean) =>
 			setState((s) => ({ ...s, agreedToRedistribution })),
@@ -106,8 +92,6 @@ export function DonationProvider({ children }: { children: ReactNode }) {
 				setSize,
 				setFrontPhoto,
 				setBackPhoto,
-				setDescription,
-				setCategory,
 				setAgreedToRedistribution,
 				setCreatedItem,
 				setEspItemId,

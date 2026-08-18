@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { mockItems, pickupPoints } from "@/data/mockData";
+import { SignInButton, useUser } from "@clerk/nextjs";
+import { pickupPoints } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,20 +21,50 @@ import {
 	CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DeliveryMethod, PickupPoint } from "@/types/donation";
+import { DeliveryMethod, PickupPoint, DonationItem } from "@/types/donation";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { fetchItem, claimItem } from "@/lib/api";
 
 export function ClaimItem() {
 	const params = useParams();
 	const id = params.id as string;
 	const router = useRouter();
-	const item = mockItems.find((i) => i.id === id);
+	const { user, isLoaded, isSignedIn } = useUser();
 
+	const [item, setItem] = useState<DonationItem | null>(null);
+	const [isFetching, setIsFetching] = useState(true);
 	const [method, setMethod] = useState<DeliveryMethod>("pickup");
 	const [pickupPoint, setPickupPoint] = useState<PickupPoint>("canteen");
 	const [phone, setPhone] = useState("");
 	const [address, setAddress] = useState("");
 	const [loading, setLoading] = useState(false);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		fetchItem(id)
+			.then((data) => {
+				if (!cancelled) setItem(data);
+			})
+			.catch(() => {
+				if (!cancelled) setItem(null);
+			})
+			.finally(() => {
+				if (!cancelled) setIsFetching(false);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [id]);
+
+	if (isFetching || !isLoaded) {
+		return (
+			<div className="flex items-center justify-center py-32">
+				<div className="h-10 w-10 animate-spin rounded-full border-4 border-[#7b9e87] border-t-transparent"></div>
+			</div>
+		);
+	}
 
 	if (!item) {
 		return (
@@ -61,8 +92,10 @@ export function ClaimItem() {
 		);
 	}
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+
+		if (!user) return;
 
 		if (!phone.trim()) {
 			toast.error("Please fill in all required fields");
@@ -75,13 +108,24 @@ export function ClaimItem() {
 		}
 
 		setLoading(true);
+		try {
+			await claimItem(id, {
+				name: user.fullName || user.username || "Anonymous",
+				email: user.primaryEmailAddress?.emailAddress || "",
+				phone,
+				method,
+				pickupPoint: method === "pickup" ? pickupPoint : undefined,
+				address: method === "delivery" ? address : undefined,
+			});
 
-		setTimeout(() => {
+			router.push(`/claim/success?id=${id}`);
+		} catch (error) {
+			// A 409 here means someone else claimed it first.
+			const message =
+				error instanceof Error ? error.message : "Something went wrong";
+			toast.error(message);
 			setLoading(false);
-			router.push(
-				`/claim/success?id=${id}&method=${method}&point=${pickupPoint}`,
-			);
-		}, 1500);
+		}
 	};
 
 	return (
@@ -233,16 +277,10 @@ export function ClaimItem() {
 											>
 												<Label
 													htmlFor={point.id}
-													className="cursor-pointer mb-1 block font-semibold text-[#1a365d]"
+													className="cursor-pointer block font-semibold text-[#1a365d]"
 												>
 													{point.name}
 												</Label>
-												<p className="text-sm text-muted-foreground">
-													{point.address}
-												</p>
-												<p className="text-xs text-[#7b9e87] mt-1 font-medium">
-													Hours: {point.hours}
-												</p>
 											</div>
 										</div>
 									</Card>
@@ -300,24 +338,42 @@ export function ClaimItem() {
 					</div>
 
 					{/* Submit Button */}
-					<Button
-						type="submit"
-						size="lg"
-						className="w-full h-14 text-base font-semibold rounded-xl bg-gradient-to-r from-[#7b9e87] to-[#6a8a75] text-white border-0 shadow-lg hover:shadow-xl transition-all"
-						disabled={loading}
-					>
-						{loading ? (
-							<span className="flex items-center gap-2">
-								<CheckCircle className="w-5 h-5 animate-spin" />
-								Processing...
-							</span>
-						) : (
-							<span className="flex items-center gap-2">
-								<CheckCircle className="w-5 h-5" />
-								Confirm Claim
-							</span>
-						)}
-					</Button>
+					{isSignedIn ? (
+						<Button
+							type="submit"
+							size="lg"
+							className="w-full h-14 text-base font-semibold rounded-xl bg-gradient-to-r from-[#7b9e87] to-[#6a8a75] text-white border-0 shadow-lg hover:shadow-xl transition-all"
+							disabled={loading}
+						>
+							{loading ? (
+								<span className="flex items-center gap-2">
+									<CheckCircle className="w-5 h-5 animate-spin" />
+									Processing...
+								</span>
+							) : (
+								<span className="flex items-center gap-2">
+									<CheckCircle className="w-5 h-5" />
+									Confirm Claim
+								</span>
+							)}
+						</Button>
+					) : (
+						<div className="text-center space-y-3">
+							<SignInButton mode="modal">
+								<Button
+									type="button"
+									size="lg"
+									className="w-full h-14 text-base font-semibold rounded-xl bg-[#1a365d] hover:bg-[#152c4d] text-white border-0 shadow-lg"
+								>
+									Sign In to Claim
+								</Button>
+							</SignInButton>
+							<p className="text-xs text-muted-foreground">
+								We need your name and email so the pickup point knows who is
+								collecting this item.
+							</p>
+						</div>
+					)}
 				</form>
 			</div>
 		</div>

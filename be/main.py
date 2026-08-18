@@ -8,7 +8,7 @@ from config import get_settings
 from database import connect_db, close_db
 from services.scheduler import start_scheduler, stop_scheduler
 
-from routers import items, donate, claim, admin, tracking, esp32
+from routers import items, donate, claim, admin, tracking, esp32, institutions
 from websocket.esp32 import esp32_websocket_endpoint
 
 
@@ -61,7 +61,7 @@ app = FastAPI(
 settings = get_settings()
 app.add_middleware(
     CORSMiddlewareSkipWS,
-    allow_origins=["*"],
+    allow_origins=[settings.FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,6 +76,7 @@ app.include_router(claim.router)
 app.include_router(admin.router)
 app.include_router(tracking.router)
 app.include_router(esp32.router)
+app.include_router(institutions.router)
 
 
 # ---------------------------------------------------------------------------

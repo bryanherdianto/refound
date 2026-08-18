@@ -5,29 +5,106 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { SignInButton, useUser } from "@clerk/nextjs";
 import {
 	Package,
-	Clock,
 	CheckCircle,
 	MapPin,
-	ArrowLeft,
 	Truck,
 	PackageOpen,
 	ArrowRight,
 } from "lucide-react";
-import { mockItems, pickupPoints } from "@/data/mockData";
+import { pickupPoints } from "@/lib/constants";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { DonationItem, getPickupPointLabel } from "@/types/donation";
+import { fetchTracking } from "@/lib/api";
 
 export function Tracking() {
 	const router = useRouter();
-	const [mounted, setMounted] = useState(false);
+	const { user, isLoaded, isSignedIn } = useUser();
+
+	const [claimedItems, setClaimedItems] = useState<DonationItem[]>([]);
+	const [hasLoaded, setHasLoaded] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	const email = user?.primaryEmailAddress?.emailAddress;
+
+	// Claims are looked up by the signed-in user's email, so there is nothing
+	// to wait for until Clerk resolves and an email is available.
+	const isLoading = !isLoaded || (!!email && !hasLoaded);
 
 	useEffect(() => {
-		setMounted(true);
-	}, []);
+		if (!isLoaded || !email) return;
 
-	// Mock claimed items
-	const claimedItems = mockItems.filter((item) => item.claimedBy);
+		let cancelled = false;
+
+		fetchTracking(email)
+			.then((data) => {
+				if (cancelled) return;
+				setClaimedItems(data);
+				setError(null);
+			})
+			.catch((err) => {
+				if (cancelled) return;
+				setError(
+					err instanceof Error ? err.message : "Could not load your claims.",
+				);
+			})
+			.finally(() => {
+				if (!cancelled) setHasLoaded(true);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [isLoaded, email]);
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center py-32">
+				<div className="h-10 w-10 animate-spin rounded-full border-4 border-[#7b9e87] border-t-transparent"></div>
+			</div>
+		);
+	}
+
+	if (!isSignedIn) {
+		return (
+			<div className="text-center py-16 px-4">
+				<div className="w-20 h-20 bg-[#e8f4ee] rounded-full flex items-center justify-center mx-auto mb-6">
+					<PackageOpen className="w-10 h-10 text-[#7b9e87]" />
+				</div>
+				<h2 className="text-xl font-semibold text-[#1a365d] mb-2">
+					Sign in to track your claims
+				</h2>
+				<p className="text-muted-foreground mb-6 max-w-md mx-auto">
+					Your claimed items are tied to your account. Sign in to see their
+					status.
+				</p>
+				<SignInButton mode="modal">
+					<Button
+						size="lg"
+						className="h-12 px-8 text-base font-semibold rounded-xl bg-[#1a365d] hover:bg-[#152c4d] text-white border-0 shadow-lg"
+					>
+						Sign In
+					</Button>
+				</SignInButton>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="text-center py-16 px-4">
+				<div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+					<PackageOpen className="w-10 h-10 text-red-500" />
+				</div>
+				<h2 className="text-xl font-semibold text-[#1a365d] mb-2">
+					Couldn&apos;t load your claims
+				</h2>
+				<p className="text-muted-foreground max-w-md mx-auto">{error}</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="pb-20">
@@ -39,6 +116,11 @@ export function Tracking() {
 								(p) => p.id === item.claimedBy?.pickupPoint,
 							);
 							const isPickedUp = !!item.claimedBy?.pickedUpAt;
+							const pickupName = pickupLocation
+								? pickupLocation.name
+								: item.claimedBy?.pickupPoint
+									? getPickupPointLabel(item.claimedBy.pickupPoint)
+									: null;
 
 							return (
 								<Card
@@ -85,7 +167,7 @@ export function Tracking() {
 											<div>
 												<p className="text-muted-foreground mb-1">Claimed On</p>
 												<p className="font-semibold text-[#1a365d]">
-													{mounted && item.claimedBy?.claimedAt
+													{item.claimedBy?.claimedAt
 														? new Date(
 																item.claimedBy.claimedAt,
 															).toLocaleDateString()
@@ -94,10 +176,10 @@ export function Tracking() {
 											</div>
 										</div>
 
-										{/* Pickup/Delivery Details */}
-										{item.claimedBy?.method === "pickup" && pickupLocation && (
+										{/* Pickup Details */}
+										{item.claimedBy?.method === "pickup" && pickupName && (
 											<div className="bg-[#e8f4ee]/50 border border-[#7b9e87]/20 rounded-2xl p-5">
-												<div className="flex items-start gap-3 mb-4">
+												<div className="flex items-start gap-3">
 													<div className="w-10 h-10 bg-[#7b9e87] rounded-full flex items-center justify-center shrink-0">
 														<MapPin className="w-5 h-5 text-white" />
 													</div>
@@ -106,23 +188,7 @@ export function Tracking() {
 															Pickup Location
 														</p>
 														<p className="text-sm text-[#1a365d]/70">
-															{pickupLocation.name}
-														</p>
-														<p className="text-xs text-muted-foreground">
-															{pickupLocation.address}
-														</p>
-													</div>
-												</div>
-												<div className="flex items-start gap-3">
-													<div className="w-10 h-10 bg-[#7b9e87]/20 rounded-full flex items-center justify-center shrink-0">
-														<Clock className="w-5 h-5 text-[#7b9e87]" />
-													</div>
-													<div>
-														<p className="text-sm font-semibold text-[#1a365d] mb-1">
-															Hours
-														</p>
-														<p className="text-xs text-muted-foreground">
-															{pickupLocation.hours}
+															{pickupName}
 														</p>
 													</div>
 												</div>
@@ -149,7 +215,7 @@ export function Tracking() {
 															Claimed
 														</p>
 														<p className="text-xs text-muted-foreground">
-															{mounted && item.claimedBy?.claimedAt
+															{item.claimedBy?.claimedAt
 																? new Date(
 																		item.claimedBy.claimedAt,
 																	).toLocaleString()
@@ -187,7 +253,9 @@ export function Tracking() {
 															</p>
 														) : (
 															<p className="text-xs text-muted-foreground">
-																Please collect from {pickupLocation?.name}
+																{pickupName
+																	? `Please collect from ${pickupName}`
+																	: "Your item is being prepared"}
 															</p>
 														)}
 													</div>

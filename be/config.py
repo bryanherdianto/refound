@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Google Gemini
     GEMINI_API_KEY: str
 
-    # Clerk (for future JWT verification)
+    # Clerk (verifies admin JWTs, see dependencies/auth.py)
     CLERK_SECRET_KEY: str
 
     # CORS

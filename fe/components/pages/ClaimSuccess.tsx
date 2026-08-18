@@ -1,21 +1,57 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, MapPin, Truck, Clock, Home } from "lucide-react";
-import { mockItems, pickupPoints } from "@/data/mockData";
+import { pickupPoints } from "@/lib/constants";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { DonationItem, getPickupPointLabel } from "@/types/donation";
+import { fetchItem } from "@/lib/api";
 
 export function ClaimSuccess() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const itemId = searchParams.get("id");
-	const method = searchParams.get("method");
-	const point = searchParams.get("point");
 
-	const item = mockItems.find((i) => i.id === itemId);
-	const pickupLocation = pickupPoints.find((p) => p.id === point);
+	const [item, setItem] = useState<DonationItem | null>(null);
+	// Nothing to load without an id, so start settled in that case.
+	const [isLoading, setIsLoading] = useState(Boolean(itemId));
+
+	useEffect(() => {
+		if (!itemId) return;
+
+		let cancelled = false;
+
+		fetchItem(itemId)
+			.then((data) => {
+				if (!cancelled) setItem(data);
+			})
+			.catch(() => {
+				if (!cancelled) setItem(null);
+			})
+			.finally(() => {
+				if (!cancelled) setIsLoading(false);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [itemId]);
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center py-32">
+				<div className="h-10 w-10 animate-spin rounded-full border-4 border-[#7b9e87] border-t-transparent"></div>
+			</div>
+		);
+	}
+
+	// Everything below is driven by the claim the backend actually recorded.
+	const claim = item?.claimedBy;
+	const method = claim?.method;
+	const pickupLocation = pickupPoints.find((p) => p.id === claim?.pickupPoint);
 
 	return (
 		<div className="pb-20">
@@ -54,15 +90,26 @@ export function ClaimSuccess() {
 						<div className="pt-4 border-t border-[#e8f4ee] space-y-3">
 							<div className="flex justify-between text-sm">
 								<span className="text-muted-foreground">Status</span>
-								<span className="font-semibold text-[#7b9e87]">Reserved</span>
-							</div>
-							<div className="flex justify-between text-sm">
-								<span className="text-muted-foreground">Claim ID</span>
-								<span className="font-semibold text-[#1a365d]">
-									CLM-
-									{Math.random().toString(36).substr(2, 8).toUpperCase()}
+								<span className="font-semibold text-[#7b9e87] capitalize">
+									{item.status}
 								</span>
 							</div>
+							<div className="flex justify-between text-sm gap-4">
+								<span className="text-muted-foreground shrink-0">
+									Reference ID
+								</span>
+								<span className="font-mono text-xs text-[#1a365d] break-all text-right">
+									{item.id}
+								</span>
+							</div>
+							{claim?.claimedAt && (
+								<div className="flex justify-between text-sm">
+									<span className="text-muted-foreground">Claimed On</span>
+									<span className="font-semibold text-[#1a365d]">
+										{new Date(claim.claimedAt).toLocaleString()}
+									</span>
+								</div>
+							)}
 						</div>
 					</Card>
 				)}
@@ -87,23 +134,16 @@ export function ClaimSuccess() {
 						)}
 					</h3>
 
-					{method === "pickup" && pickupLocation ? (
+					{method === "pickup" ? (
 						<div className="space-y-4">
 							<div className="bg-[#f8faf9] rounded-xl p-4">
 								<p className="text-sm text-muted-foreground mb-1">Location</p>
 								<p className="font-semibold text-[#1a365d]">
-									{pickupLocation.name}
-								</p>
-								<p className="text-sm text-muted-foreground">
-									{pickupLocation.address}
-								</p>
-							</div>
-							<div className="bg-[#f8faf9] rounded-xl p-4">
-								<p className="text-sm text-muted-foreground mb-1">
-									Operating Hours
-								</p>
-								<p className="font-semibold text-[#1a365d]">
-									{pickupLocation.hours}
+									{pickupLocation
+										? pickupLocation.name
+										: claim?.pickupPoint
+											? getPickupPointLabel(claim.pickupPoint)
+											: "-"}
 								</p>
 							</div>
 							<div className="flex items-center gap-2 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl">
@@ -114,21 +154,11 @@ export function ClaimSuccess() {
 							</div>
 						</div>
 					) : (
-						<div className="space-y-4">
-							<div className="bg-[#f8faf9] rounded-xl p-4">
-								<p className="text-sm text-muted-foreground mb-1">
-									Estimated Delivery
-								</p>
-								<p className="font-semibold text-[#1a365d]">
-									3-5 Business Days
-								</p>
-							</div>
-							<div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
-								<Truck className="w-5 h-5 text-blue-600" />
-								<span className="text-sm font-medium text-blue-700">
-									Processing delivery
-								</span>
-							</div>
+						<div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+							<Truck className="w-5 h-5 text-blue-600" />
+							<span className="text-sm font-medium text-blue-700">
+								Processing delivery
+							</span>
 						</div>
 					)}
 				</Card>
@@ -145,7 +175,7 @@ export function ClaimSuccess() {
 									<span className="text-xs font-bold text-[#7b9e87]">1</span>
 								</div>
 								<p className="text-sm text-muted-foreground pt-1.5">
-									You&apos;ll receive an email confirmation shortly
+									Visit the pickup location to collect your item
 								</p>
 							</div>
 							<div className="flex items-start gap-3">
@@ -153,7 +183,7 @@ export function ClaimSuccess() {
 									<span className="text-xs font-bold text-[#7b9e87]">2</span>
 								</div>
 								<p className="text-sm text-muted-foreground pt-1.5">
-									Visit the pickup location during operating hours
+									Show your Reference ID to collect the item
 								</p>
 							</div>
 							<div className="flex items-start gap-3">
@@ -161,7 +191,7 @@ export function ClaimSuccess() {
 									<span className="text-xs font-bold text-[#7b9e87]">3</span>
 								</div>
 								<p className="text-sm text-muted-foreground pt-1.5">
-									Show your Claim ID to collect the item
+									Follow the status of your claim on the tracking page
 								</p>
 							</div>
 						</div>
@@ -172,7 +202,7 @@ export function ClaimSuccess() {
 									<span className="text-xs font-bold text-[#7b9e87]">1</span>
 								</div>
 								<p className="text-sm text-muted-foreground pt-1.5">
-									You&apos;ll receive an email confirmation shortly
+									Your delivery address has been recorded with the claim
 								</p>
 							</div>
 							<div className="flex items-start gap-3">
@@ -180,15 +210,7 @@ export function ClaimSuccess() {
 									<span className="text-xs font-bold text-[#7b9e87]">2</span>
 								</div>
 								<p className="text-sm text-muted-foreground pt-1.5">
-									Track your delivery status in your email
-								</p>
-							</div>
-							<div className="flex items-start gap-3">
-								<div className="w-8 h-8 bg-[#e8f4ee] rounded-full flex items-center justify-center shrink-0">
-									<span className="text-xs font-bold text-[#7b9e87]">3</span>
-								</div>
-								<p className="text-sm text-muted-foreground pt-1.5">
-									Receive your item within 3-5 business days
+									Follow the status of your claim on the tracking page
 								</p>
 							</div>
 						</div>

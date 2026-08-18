@@ -5,6 +5,8 @@ import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Phone, MapPin, Building2, CheckCircle2, Loader2 } from "lucide-react";
+import { Institution } from "@/types/institution";
+import { fetchInstitutions } from "@/lib/api";
 
 // Internal light-weight Advanced Marker component
 function AdvancedMarker({
@@ -44,16 +46,6 @@ function AdvancedMarker({
 	return null;
 }
 
-interface Institution {
-	id: string;
-	name: string;
-	address: string;
-	phone: string;
-	lat: number;
-	lng: number;
-	type: "orphanage" | "nursing_home";
-}
-
 interface RedistributionMapProps {
 	onAssign: (institutionName: string) => void;
 	selectedCount: number;
@@ -65,35 +57,7 @@ const mapContainerStyle = {
 	borderRadius: "1rem",
 };
 
-const mapContainerStyleDesktop = {
-	width: "100%",
-	height: "500px",
-	borderRadius: "1rem",
-};
-
 const LIBRARIES: "marker"[] = ["marker"];
-
-// Mock data for institutions - in real app, fetch from Google Places API
-const mockInstitutions: Institution[] = [
-	{
-		id: "inst-1",
-		name: "Golden Age Nursing Home",
-		address: "123 Serenity Lane, Wellness District",
-		phone: "+1 234-567-8901",
-		lat: 13.7563, // Example coords (Bangkok area style)
-		lng: 100.5018,
-		type: "nursing_home",
-	},
-	{
-		id: "inst-2",
-		name: "Sunshine Children's Home",
-		address: "45 Hope Street, Care Colony",
-		phone: "+1 234-567-8902",
-		lat: 13.7463,
-		lng: 100.5318,
-		type: "orphanage",
-	},
-];
 
 export function RedistributionMap({
 	onAssign,
@@ -107,15 +71,63 @@ export function RedistributionMap({
 
 	const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
 	const [map, setMap] = useState<google.maps.Map | null>(null);
+	const [institutions, setInstitutions] = useState<Institution[]>([]);
+	const [isLoadingInst, setIsLoadingInst] = useState(true);
 
-	const center = useMemo(() => ({ lat: 13.7563, lng: 100.5018 }), []);
+	useEffect(() => {
+		let cancelled = false;
 
-	if (!isLoaded)
+		fetchInstitutions()
+			.then((data) => {
+				if (!cancelled) setInstitutions(data);
+			})
+			.catch(() => {
+				if (!cancelled) setInstitutions([]);
+			})
+			.finally(() => {
+				if (!cancelled) setIsLoadingInst(false);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	// Centre on the institutions we actually have.
+	const center = useMemo(() => {
+		if (institutions.length === 0) return { lat: 0, lng: 0 };
+		const sum = institutions.reduce(
+			(acc, i) => ({ lat: acc.lat + i.lat, lng: acc.lng + i.lng }),
+			{ lat: 0, lng: 0 },
+		);
+		return {
+			lat: sum.lat / institutions.length,
+			lng: sum.lng / institutions.length,
+		};
+	}, [institutions]);
+
+	if (!isLoaded || isLoadingInst)
 		return (
 			<div className="h-64 md:h-125 w-full bg-[#e8f4ee] rounded-2xl flex items-center justify-center">
 				<div className="flex items-center gap-2 text-[#7b9e87]">
 					<Loader2 className="w-5 h-5 animate-spin" />
 					<span>Loading Maps...</span>
+				</div>
+			</div>
+		);
+
+	if (institutions.length === 0)
+		return (
+			<div className="h-64 md:h-125 w-full bg-[#e8f4ee] rounded-2xl flex items-center justify-center p-6">
+				<div className="text-center max-w-sm">
+					<Building2 className="w-10 h-10 text-[#7b9e87] mx-auto mb-3" />
+					<p className="font-semibold text-[#1a365d] mb-1">
+						No institutions configured
+					</p>
+					<p className="text-sm text-muted-foreground">
+						Seed the institutions collection on the backend before assigning
+						items for redistribution.
+					</p>
 				</div>
 			</div>
 		);
@@ -146,7 +158,7 @@ export function RedistributionMap({
 						],
 					}}
 				>
-					{mockInstitutions.map((inst) => (
+					{institutions.map((inst) => (
 						<AdvancedMarker
 							key={inst.id}
 							map={map}
@@ -194,7 +206,7 @@ export function RedistributionMap({
 			</div>
 
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-				{mockInstitutions.map((inst) => (
+				{institutions.map((inst) => (
 					<Card
 						key={inst.id}
 						className={`p-4 cursor-pointer transition-all border-2 ${selectedInst?.id === inst.id ? "border-[#7b9e87] bg-[#e8f4ee]/30" : "border-transparent hover:border-[#e8f4ee]"}`}

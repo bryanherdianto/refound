@@ -2,22 +2,49 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { mockItems } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle, PackageX } from "lucide-react";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
+import { DonationItem } from "@/types/donation";
+import { fetchItem } from "@/lib/api";
 
 export function ItemDetail() {
 	const params = useParams();
 	const id = params.id as string;
 	const router = useRouter();
-	const item = mockItems.find((i) => i.id === id);
 
-	const [activeImage, setActiveImage] = useState(item?.image || "");
+	const [item, setItem] = useState<DonationItem | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+	const [activeImage, setActiveImage] = useState("");
 
 	useEffect(() => {
-		if (item) setActiveImage(item.image);
-	}, [item]);
+		let cancelled = false;
+
+		fetchItem(id)
+			.then((data) => {
+				if (cancelled) return;
+				setItem(data);
+				setActiveImage(data.image);
+			})
+			.catch(() => {
+				if (!cancelled) setItem(null);
+			})
+			.finally(() => {
+				if (!cancelled) setIsLoading(false);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [id]);
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center py-32">
+				<div className="h-10 w-10 animate-spin rounded-full border-4 border-[#7b9e87] border-t-transparent"></div>
+			</div>
+		);
+	}
 
 	if (!item) {
 		return (
@@ -152,10 +179,7 @@ export function ItemDetail() {
 										<span className="text-sm text-muted-foreground">
 											Donation Date
 										</span>
-										<span
-											className="text-sm font-medium text-[#1a365d]"
-											suppressHydrationWarning
-										>
+										<span className="text-sm font-medium text-[#1a365d]">
 											{new Date(item.detectedAt).toLocaleDateString()}
 										</span>
 									</div>

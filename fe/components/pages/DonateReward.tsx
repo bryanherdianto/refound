@@ -5,10 +5,6 @@ import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import {
 	Gift,
-	Star,
-	Heart,
-	Mail,
-	Award,
 	CheckCircle,
 	Home,
 	RotateCcw,
@@ -23,7 +19,6 @@ export function DonateReward() {
 	const { createdItem, reset } = useDonation();
 
 	const itemName = createdItem?.name || "Your Item";
-	const rewardPoints = 50;
 
 	useEffect(() => {
 		// Fire confetti with green color palette
@@ -74,29 +69,6 @@ export function DonateReward() {
 					</p>
 				</div>
 
-				{/* Reward Card */}
-				<Card className="p-6 md:p-8 bg-linear-to-br from-[#7b9e87] to-[#6a8a75] text-white border-0 shadow-xl shadow-[#7b9e87]/20 mb-6">
-					<div className="text-center space-y-4">
-						<div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto">
-							<Award className="w-8 h-8 text-white" />
-						</div>
-						<div>
-							<p className="text-white/80 mb-2 text-sm uppercase tracking-wider font-medium">
-								You&apos;ve earned
-							</p>
-							<p className="text-4xl md:text-5xl font-bold">{rewardPoints} Points</p>
-						</div>
-						<div className="flex items-center justify-center gap-1">
-							{[...Array(5)].map((_, i) => (
-								<Star
-									key={i}
-									className="w-5 h-5 fill-yellow-300 text-yellow-300"
-								/>
-							))}
-						</div>
-					</div>
-				</Card>
-
 				{/* Donation Summary */}
 				<Card className="p-6 mb-6 border-[#e8f4ee] shadow-sm">
 					<h3 className="text-base font-semibold text-[#1a365d] mb-4 flex items-center gap-2">
@@ -114,56 +86,27 @@ export function DonateReward() {
 							</span>
 						</div>
 						<div className="flex justify-between text-sm">
-							<span className="text-muted-foreground">Processing</span>
-							<span className="font-medium text-[#1a365d]">
-								{itemName}
-							</span>
+							<span className="text-muted-foreground">Item</span>
+							<span className="font-medium text-[#1a365d]">{itemName}</span>
 						</div>
-						<div className="flex justify-between text-sm">
-							<span className="text-muted-foreground">Item Will Be</span>
-							<span className="font-medium text-[#1a365d]">
-								Available in 48 hours
-							</span>
-						</div>
-						<div className="flex justify-between text-sm">
-							<span className="text-muted-foreground">Reward Points</span>
-							<span className="font-medium text-[#7b9e87]">+{rewardPoints} Points</span>
-						</div>
+						{createdItem?.category && (
+							<div className="flex justify-between text-sm">
+								<span className="text-muted-foreground">Category</span>
+								<span className="font-medium text-[#1a365d] capitalize">
+									{createdItem.category}
+								</span>
+							</div>
+						)}
+						{createdItem?.condition && (
+							<div className="flex justify-between text-sm">
+								<span className="text-muted-foreground">Condition</span>
+								<span className="font-medium text-[#1a365d]">
+									{createdItem.condition}
+								</span>
+							</div>
+						)}
 					</div>
 				</Card>
-
-				{/* Impact Stats */}
-				<div className="grid grid-cols-2 gap-4 mb-6">
-					<Card className="p-4 text-center border-[#e8f4ee] shadow-sm">
-						<div className="w-10 h-10 bg-[#e8f4ee] rounded-xl flex items-center justify-center mx-auto mb-2">
-							<Heart className="w-5 h-5 text-[#7b9e87]" />
-						</div>
-						<p className="text-2xl md:text-4xl font-bold text-[#1a365d]">1</p>
-						<p className="text-xs text-muted-foreground">Item Donated</p>
-					</Card>
-					<Card className="p-4 text-center border-[#e8f4ee] shadow-sm">
-						<div className="w-10 h-10 bg-[#e8f4ee] rounded-xl flex items-center justify-center mx-auto mb-2">
-							<Star className="w-5 h-5 text-[#7b9e87]" />
-						</div>
-						<p className="text-2xl md:text-4xl font-bold text-[#1a365d]">{rewardPoints}</p>
-						<p className="text-xs text-muted-foreground">Points Earned</p>
-					</Card>
-				</div>
-
-				{/* Email Notification */}
-				<div className="bg-[#e8f4ee]/50 border border-[#7b9e87]/20 rounded-2xl p-4 flex items-start gap-3 mb-8">
-					<div className="w-8 h-8 bg-[#7b9e87]/20 rounded-lg flex items-center justify-center shrink-0">
-						<Mail className="w-4 h-4 text-[#7b9e87]" />
-					</div>
-					<div>
-						<p className="text-sm font-semibold text-[#1a365d]">
-							Confirmation email sent!
-						</p>
-						<p className="text-xs text-[#1a365d]/70 mt-1">
-							Check your inbox for the donation receipt and reward details.
-						</p>
-					</div>
-				</div>
 
 				{/* Actions */}
 				<div className="space-y-3">

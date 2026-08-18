@@ -17,9 +17,8 @@ export function DonateForm() {
 		size,
 		frontPhoto,
 		backPhoto,
-		description,
-		category,
 		agreedToRedistribution,
+		setAgreedToRedistribution,
 		setCreatedItem,
 		espItemId,
 	} = useDonation();
@@ -37,14 +36,9 @@ export function DonateForm() {
 
 			let createdItem;
 
-			// Check if we already have an item ID from the ESP32 hardware capture
-			if (espItemId) {
-				createdItem = await updateDonorInfo(espItemId, {
-					donorName,
-					donorEmail,
-					agreedToRedistribution,
-				});
-			} else if (size === "big" && frontPhoto && backPhoto) {
+			// Big items carry photos that must reach S3, so this branch comes
+			// first - otherwise an ESP32 item id would silently discard them.
+			if (size === "big" && frontPhoto && backPhoto) {
 				createdItem = await donateBigItem({
 					donorName,
 					donorEmail,
@@ -52,13 +46,18 @@ export function DonateForm() {
 					photoFront: frontPhoto,
 					photoBack: backPhoto,
 				});
+			} else if (espItemId) {
+				// The bin already created the item; just attach the donor identity.
+				createdItem = await updateDonorInfo(espItemId, {
+					donorName,
+					donorEmail,
+					agreedToRedistribution,
+				});
 			} else {
 				createdItem = await donateSmallItem({
 					donorName,
 					donorEmail,
 					agreedToRedistribution,
-					description: description || undefined,
-					category: category || undefined,
 				});
 			}
 
@@ -128,11 +127,27 @@ export function DonateForm() {
 											Verified Donor Account
 										</p>
 										<p className="text-xs text-muted-foreground mt-0.5">
-											Your points and impact history will be automatically saved
-											to this profile.
+											This donation will be recorded against your profile.
 										</p>
 									</div>
 								</div>
+
+								{/* A9: consent drives whether admins may redistribute the item
+								    to a partner institution once it expires. */}
+								<label className="flex items-start gap-3 cursor-pointer rounded-2xl border border-[#e8f4ee] p-4 hover:border-[#7b9e87]/50 transition-colors">
+									<input
+										type="checkbox"
+										checked={agreedToRedistribution}
+										onChange={(e) =>
+											setAgreedToRedistribution(e.target.checked)
+										}
+										className="mt-0.5 h-4 w-4 shrink-0 accent-[#7b9e87]"
+									/>
+									<span className="text-xs text-muted-foreground">
+										If nobody claims this item, I agree that ReFound may pass it
+										on to a partner orphanage or nursing home.
+									</span>
+								</label>
 
 								<Button
 									onClick={handleComplete}
@@ -151,7 +166,7 @@ export function DonateForm() {
 								</Button>
 							</SignInButton>
 							<p className="text-xs text-muted-foreground">
-								Don't have an account? No worries, we'll create one for you
+								Don&apos;t have an account? No worries, we&apos;ll create one for you
 								during sign in.
 							</p>
 						</div>
@@ -160,29 +175,22 @@ export function DonateForm() {
 					{/* Benefits */}
 					<div className="bg-accent border border-primary/20 rounded-2xl p-6 space-y-3">
 						<p className="text-sm text-foreground font-bold">
-							What you'll get:
+							What happens next:
 						</p>
 						<ul className="text-sm text-muted-foreground space-y-2">
 							<li className="flex items-center gap-2">
 								•{" "}
 								<span className="font-medium text-[#1a365d]">
-									Reward points
+									AI verification
 								</span>{" "}
-								for your donation
+								of your item&apos;s condition
 							</li>
 							<li className="flex items-center gap-2">
 								•{" "}
 								<span className="font-medium text-[#1a365d]">
-									Email confirmation
+									Listed for the community
 								</span>{" "}
-								and digital receipt
-							</li>
-							<li className="flex items-center gap-2">
-								•{" "}
-								<span className="font-medium text-[#1a365d]">
-									Real-time tracking
-								</span>{" "}
-								of your impact
+								to browse and claim
 							</li>
 						</ul>
 					</div>

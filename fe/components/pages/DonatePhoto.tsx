@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
-import { Camera, CheckCircle, Sparkles, Lightbulb } from "lucide-react";
+import { Camera, CheckCircle, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { useDonation } from "@/contexts/DonationContext";
 
@@ -53,7 +53,9 @@ export function DonatePhoto() {
 			toast.error("Please capture both front and back photos");
 			return;
 		}
-		router.push(`/donate/insert?size=${size}`);
+		// Big items bypass the smart bin - they are handed over separately and
+		// verified from these photos instead.
+		router.push(`/donate/form?size=${size}`);
 	};
 
 	return (
@@ -69,7 +71,7 @@ export function DonatePhoto() {
 							</h1>
 						</div>
 						<p className="text-sm text-muted-foreground">
-							Step 2 of 3 • Big items require photo verification
+							Step 2 of 3 • Big items are verified from your photos
 						</p>
 					</div>
 				</div>
@@ -196,7 +198,7 @@ export function DonatePhoto() {
 						{frontImage && backImage ? (
 							<span className="flex items-center gap-2">
 								<CheckCircle className="w-5 h-5" />
-								Continue to Insert Item
+								Continue
 							</span>
 						) : (
 							<span>Capture Both Photos to Continue</span>

@@ -32,3 +32,8 @@ def get_db():
 def get_items_collection():
     """Shortcut to get the items collection."""
     return get_db()["items"]
+
+
+def get_institutions_collection():
+    """Shortcut to get the institutions collection."""
+    return get_db()["institutions"]

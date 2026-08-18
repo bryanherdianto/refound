@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from database import get_items_collection
+from models.item import _utcnow
 
 scheduler = AsyncIOScheduler()
 
@@ -13,7 +14,7 @@ async def expire_stale_items():
     then update their status to EXPIRED.
     """
     collection = get_items_collection()
-    cutoff = datetime.utcnow() - timedelta(days=7)
+    cutoff = _utcnow() - timedelta(days=7)
 
     result = await collection.update_many(
         {

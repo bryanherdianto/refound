@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { mockItems } from "@/data/mockData";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,22 +22,80 @@ import {
 	AlertCircle,
 	Filter,
 	MapPin,
+	PackageCheck,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { getStatusColor, getStatusLabel, ItemStatus } from "@/types/donation";
+import {
+	getStatusColor,
+	getStatusLabel,
+	ItemStatus,
+	DonationItem,
+} from "@/types/donation";
 import { toast } from "sonner";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 import { RedistributionMap } from "./RedistributionMap";
+import {
+	adminListItems,
+	adminUpdateStatus,
+	adminAssignItem,
+	adminCompleteItem,
+	adminMarkPickedUp,
+} from "@/lib/api";
 
 type FilterType = "all" | ItemStatus;
 type TabType = "moderate" | "redistribute";
 
 export function Admin() {
-	const router = useRouter();
+	const { getToken } = useAuth();
+
 	const [activeTab, setActiveTab] = useState<TabType>("moderate");
-	const [items, setItems] = useState(mockItems);
+	const [items, setItems] = useState<DonationItem[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [busy, setBusy] = useState(false);
 	const [filter, setFilter] = useState<FilterType>("all");
 	const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+	const loadItems = useCallback(async () => {
+		try {
+			const token = await getToken();
+			const data = await adminListItems(token);
+			setItems(data);
+			setError(null);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : "Could not load items.",
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	}, [getToken]);
+
+	useEffect(() => {
+		loadItems();
+	}, [loadItems]);
+
+	/**
+	 * Runs a mutation against the backend, then refetches so the table always
+	 * reflects server state rather than an optimistic guess.
+	 */
+	const runAction = async (
+		action: (token: string | null) => Promise<unknown>,
+		successMessage: string,
+	) => {
+		setBusy(true);
+		try {
+			const token = await getToken();
+			await action(token);
+			await loadItems();
+			toast.success(successMessage);
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Something went wrong",
+			);
+		} finally {
+			setBusy(false);
+		}
+	};
 
 	const filteredItems = useMemo(() => {
 		let result = items;
@@ -62,41 +120,56 @@ export function Admin() {
 		};
 	}, [items]);
 
-	const handleOverride = (itemId: string, action: "approve" | "reject") => {
-		setItems((prev) =>
-			prev.map((i) =>
-				i.id === itemId
-					? { ...i, status: action === "approve" ? "available" : "rejected" }
-					: i,
-			),
-		);
-		toast.success(
+	const handleOverride = (itemId: string, action: "approve" | "reject") =>
+		runAction(
+			(token) =>
+				adminUpdateStatus(
+					token,
+					itemId,
+					action === "approve" ? "available" : "rejected",
+				),
 			`Item ${action === "approve" ? "approved" : "rejected"} successfully`,
 		);
-	};
 
-	const handleAssignBatch = (institutionName: string) => {
-		setItems((prev) =>
-			prev.map((i) =>
-				selectedItems.includes(i.id)
-					? { ...i, status: "redirected", assignedTo: institutionName }
-					: i,
-			),
+	const handleMarkPickedUp = (itemId: string) =>
+		runAction(
+			(token) => adminMarkPickedUp(token, itemId),
+			"Item marked as collected",
 		);
-		toast.success(
-			`${selectedItems.length} items assigned to ${institutionName}`,
+
+	const handleComplete = (itemId: string) =>
+		runAction(
+			(token) => adminCompleteItem(token, itemId),
+			"Item marked as completed",
 		);
-		setSelectedItems([]);
+
+	const handleAssignBatch = async (institutionName: string) => {
+		if (selectedItems.length === 0) return;
+
+		setBusy(true);
+		try {
+			const token = await getToken();
+			await Promise.all(
+				selectedItems.map((id) => adminAssignItem(token, id, institutionName)),
+			);
+			await loadItems();
+			toast.success(
+				`${selectedItems.length} item${selectedItems.length === 1 ? "" : "s"} assigned to ${institutionName}`,
+			);
+			setSelectedItems([]);
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Could not assign items",
+			);
+		} finally {
+			setBusy(false);
+		}
 	};
 
 	const toggleSelection = (id: string) => {
 		setSelectedItems((prev) =>
 			prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
 		);
-	};
-
-	const handleAssign = (itemId: string) => {
-		toast.success("Item assigned to donation partner");
 	};
 
 	const statCards = [
@@ -133,6 +206,37 @@ export function Admin() {
 		{ value: "claimed", label: "Claimed", count: stats.claimed },
 		{ value: "expired", label: "Expired", count: stats.expired },
 	];
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center py-32">
+				<div className="h-10 w-10 animate-spin rounded-full border-4 border-[#7b9e87] border-t-transparent"></div>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="text-center py-16 px-4">
+				<div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+					<AlertCircle className="w-10 h-10 text-red-500" />
+				</div>
+				<h2 className="text-xl font-semibold text-[#1a365d] mb-2">
+					Couldn&apos;t load the dashboard
+				</h2>
+				<p className="text-muted-foreground mb-6 max-w-md mx-auto">{error}</p>
+				<Button
+					onClick={() => {
+						setIsLoading(true);
+						loadItems();
+					}}
+					className="bg-[#7b9e87] hover:bg-[#6a8a75] text-white"
+				>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
 
 	return (
 		<div className="pb-20">
@@ -251,6 +355,11 @@ export function Admin() {
 							</div>
 
 							<div className="space-y-3 max-h-100 overflow-y-auto pr-2 scrollbar-thin">
+								{filteredItems.length === 0 && (
+									<p className="text-sm text-muted-foreground py-8 text-center">
+										No expired or redirected items right now.
+									</p>
+								)}
 								{filteredItems.map((item) => (
 									<div
 										key={item.id}
@@ -280,9 +389,24 @@ export function Admin() {
 												{item.category} • {item.size}
 											</p>
 											{item.status === "redirected" ? (
-												<div className="flex items-center gap-1 text-[10px] font-bold text-[#7b9e87]">
-													<Send className="w-3 h-3" /> Assigned to{" "}
-													{item.assignedTo}
+												<div className="space-y-1">
+													<div className="flex items-center gap-1 text-[10px] font-bold text-[#7b9e87]">
+														<Send className="w-3 h-3" /> Assigned to{" "}
+														{item.assignedTo}
+													</div>
+													<Button
+														size="sm"
+														variant="outline"
+														disabled={busy}
+														className="h-7 text-[10px] border-[#7b9e87]/30 text-[#7b9e87] hover:bg-[#e8f4ee]"
+														onClick={(e) => {
+															e.stopPropagation();
+															handleComplete(item.id);
+														}}
+													>
+														<PackageCheck className="w-3 h-3 mr-1" />
+														Mark Completed
+													</Button>
 												</div>
 											) : (
 												<div className="text-[14px] text-orange-600 font-medium">
@@ -326,7 +450,7 @@ export function Admin() {
 					</div>
 				)}
 
-				{/* Original Moderation Views (Mobile/Desktop) - Wrap in conditional */}
+				{/* Moderation Views (Mobile/Desktop) */}
 				{activeTab === "moderate" && (
 					<>
 						{/* Mobile Cards View */}
@@ -361,6 +485,7 @@ export function Admin() {
 										<Button
 											size="sm"
 											variant="outline"
+											disabled={busy}
 											className="flex-1 h-10 text-xs font-medium border-[#7b9e87]/30 text-[#7b9e87] hover:bg-[#e8f4ee] hover:text-[#6a8a75]"
 											onClick={() => handleOverride(item.id, "approve")}
 										>
@@ -370,21 +495,25 @@ export function Admin() {
 										<Button
 											size="sm"
 											variant="outline"
+											disabled={busy}
 											className="flex-1 h-10 text-xs font-medium border-red-200 text-red-600 hover:bg-red-50"
 											onClick={() => handleOverride(item.id, "reject")}
 										>
 											<XCircle className="w-3.5 h-3.5 mr-1" />
 											Reject
 										</Button>
-										<Button
-											size="sm"
-											variant="outline"
-											className="flex-1 h-10 text-xs font-medium border-[#e8f4ee] text-[#1a365d] hover:bg-[#e8f4ee]"
-											onClick={() => handleAssign(item.id)}
-										>
-											<Send className="w-3.5 h-3.5 mr-1" />
-											Assign
-										</Button>
+										{item.status === "claimed" && (
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={busy}
+												className="flex-1 h-10 text-xs font-medium border-[#e8f4ee] text-[#1a365d] hover:bg-[#e8f4ee]"
+												onClick={() => handleMarkPickedUp(item.id)}
+											>
+												<PackageCheck className="w-3.5 h-3.5 mr-1" />
+												Collected
+											</Button>
+										)}
 									</div>
 								</div>
 							))}
@@ -445,6 +574,7 @@ export function Admin() {
 													<Button
 														size="sm"
 														variant="ghost"
+														disabled={busy}
 														className="h-8 w-8 p-0 text-[#7b9e87] hover:bg-[#e8f4ee] hover:text-[#6a8a75]"
 														onClick={() => handleOverride(item.id, "approve")}
 														title="Approve"
@@ -454,21 +584,26 @@ export function Admin() {
 													<Button
 														size="sm"
 														variant="ghost"
+														disabled={busy}
 														className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
 														onClick={() => handleOverride(item.id, "reject")}
 														title="Reject"
 													>
 														<XCircle className="w-4 h-4" />
 													</Button>
-													<Button
-														size="sm"
-														variant="ghost"
-														className="h-8 px-2 text-xs text-[#1a365d] hover:bg-[#e8f4ee]"
-														onClick={() => handleAssign(item.id)}
-													>
-														<Send className="w-3.5 h-3.5 mr-1" />
-														Assign
-													</Button>
+													{item.status === "claimed" && (
+														<Button
+															size="sm"
+															variant="ghost"
+															disabled={busy}
+															className="h-8 px-2 text-xs text-[#1a365d] hover:bg-[#e8f4ee]"
+															onClick={() => handleMarkPickedUp(item.id)}
+															title="Mark as collected"
+														>
+															<PackageCheck className="w-3.5 h-3.5 mr-1" />
+															Collected
+														</Button>
+													)}
 												</div>
 											</TableCell>
 										</TableRow>

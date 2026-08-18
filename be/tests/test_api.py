@@ -19,7 +19,12 @@ from bson import ObjectId
 from httpx import AsyncClient, ASGITransport
 
 from database import connect_db, close_db, get_items_collection
+from dependencies.auth import require_admin
 from main import app
+
+# /api/admin/* requires a verified Clerk admin token. These tests exercise the
+# handlers, not Clerk, so stand in a fake admin identity.
+app.dependency_overrides[require_admin] = lambda: "test_admin_user"
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +51,6 @@ async def seed_item(overrides: dict = None) -> str:
         "agreed_to_redistribution": True,
         "claimed_by": None,
         "assigned_institution": None,
-        "reward_points": 10,
     }
 
     if overrides:
@@ -334,6 +338,26 @@ async def test_admin_complete(client: AsyncClient):
     print("Admin complete passed\n")
 
 
+async def test_admin_requires_auth():
+    """Unauthenticated callers must not reach /api/admin/*."""
+    print("--- Testing admin auth guard ---")
+
+    # Temporarily drop the override so the real guard runs.
+    app.dependency_overrides.pop(require_admin, None)
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as anon:
+            resp = await anon.get("/api/admin/items")
+            assert resp.status_code == 401, (
+                f"Expected 401 without a token, got {resp.status_code}"
+            )
+            print("  Unauthenticated GET /api/admin/items -> 401: OK")
+    finally:
+        app.dependency_overrides[require_admin] = lambda: "test_admin_user"
+
+    print("Admin auth guard passed")
+
+
 async def test_tracking(client: AsyncClient):
     """Test GET /api/tracking?email=..."""
     print("--- Testing Tracking ---")
@@ -401,6 +425,7 @@ async def run_all_tests():
             await test_admin_update_status(client)
             await test_admin_assign_to_institution(client)
             await test_admin_complete(client)
+            await test_admin_requires_auth()
             await test_tracking(client)
         finally:
             # Clean up test data

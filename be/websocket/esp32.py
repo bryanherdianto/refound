@@ -145,7 +145,6 @@ async def esp32_websocket_endpoint(websocket: WebSocket):
                                 "agreed_to_redistribution": False,
                                 "claimed_by": None,
                                 "assigned_institution": None,
-                                "reward_points": 10,
                             }
                             collection = get_items_collection()
                             result = await collection.insert_one(item_doc)

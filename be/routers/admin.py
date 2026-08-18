@@ -1,10 +1,16 @@
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from database import get_items_collection
-from models.item import AdminStatusUpdate, ItemResponse
+from dependencies.auth import require_admin
+from models.item import AdminStatusUpdate, ItemResponse, _utcnow
 
-router = APIRouter(prefix="/api/admin", tags=["Admin"])
+# Every route here requires a verified Clerk token with the `admin` role.
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["Admin"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.get("/items", response_model=list[ItemResponse])
@@ -62,7 +68,7 @@ async def admin_assign_item(item_id: str, institution_name: str):
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    if item.get("status") not in ("expired", "available", "expiring"):
+    if item.get("status") not in ("expired", "available"):
         raise HTTPException(
             status_code=409,
             detail="Only expired/available items can be assigned to institutions",
@@ -77,11 +83,6 @@ async def admin_assign_item(item_id: str, institution_name: str):
             }
         },
     )
-
-    # TODO: Send email notification to donor
-    # donor_email = item.get("donor_email")
-    # if donor_email:
-    #     send_notification_email(donor_email, institution_name)
 
     updated = await collection.find_one({"_id": oid})
     return ItemResponse.from_db(updated)
@@ -110,6 +111,44 @@ async def admin_complete_item(item_id: str):
     await collection.update_one(
         {"_id": oid},
         {"$set": {"status": "completed"}},
+    )
+
+    updated = await collection.find_one({"_id": oid})
+    return ItemResponse.from_db(updated)
+
+
+@router.patch("/items/{item_id}/pickup", response_model=ItemResponse)
+async def admin_mark_picked_up(item_id: str):
+    """Mark a claimed item as collected by its claimant.
+
+    Stamps `claimed_by.picked_up_at` and moves the item to DELIVERED, which is
+    what drives the "Picked Up" step of the user-facing tracking timeline.
+    """
+    collection = get_items_collection()
+
+    try:
+        oid = ObjectId(item_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid item ID format")
+
+    item = await collection.find_one({"_id": oid})
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    if item.get("status") != "claimed":
+        raise HTTPException(
+            status_code=409,
+            detail="Only claimed items can be marked as picked up",
+        )
+
+    await collection.update_one(
+        {"_id": oid},
+        {
+            "$set": {
+                "status": "delivered",
+                "claimed_by.picked_up_at": _utcnow(),
+            }
+        },
     )
 
     updated = await collection.find_one({"_id": oid})

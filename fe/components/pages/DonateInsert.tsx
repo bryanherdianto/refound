@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import {
@@ -11,7 +11,7 @@ import {
 	XCircle,
 } from "lucide-react";
 import { useDonation } from "@/contexts/DonationContext";
-import { esp32Capture } from "@/lib/api";
+import { esp32Capture, esp32Status } from "@/lib/api";
 import { toast } from "sonner";
 
 type InsertStatus = "waiting" | "detecting" | "detected" | "rejected";
@@ -22,6 +22,28 @@ export function DonateInsert() {
 
 	const [status, setStatus] = useState<InsertStatus>("waiting");
 	const [detectedName, setDetectedName] = useState("");
+	const [binOnline, setBinOnline] = useState<boolean | null>(null);
+
+	// Poll the bin so the user knows up front whether it can respond.
+	useEffect(() => {
+		let cancelled = false;
+
+		const check = () =>
+			esp32Status()
+				.then((res) => {
+					if (!cancelled) setBinOnline(res.connected);
+				})
+				.catch(() => {
+					if (!cancelled) setBinOnline(false);
+				});
+
+		check();
+		const interval = setInterval(check, 10000);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
+	}, []);
 
 	const handleInsert = async () => {
 		setStatus("detecting");
@@ -187,8 +209,9 @@ export function DonateInsert() {
 					<div className="space-y-4">
 						<Button
 							size="lg"
-							className="w-full h-14 text-base font-semibold rounded-xl bg-linear-to-r from-[#7b9e87] to-[#6a8a75] text-white border-0 shadow-lg hover:shadow-xl transition-all"
+							className="w-full h-14 text-base font-semibold rounded-xl bg-linear-to-r from-[#7b9e87] to-[#6a8a75] text-white border-0 shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
 							onClick={handleInsert}
+							disabled={binOnline === false}
 						>
 							<span className="flex items-center gap-2">
 								<Package className="w-5 h-5" />
@@ -198,7 +221,9 @@ export function DonateInsert() {
 							</span>
 						</Button>
 						<p className="text-xs text-center text-muted-foreground">
-							Click this button after inserting your item
+							{binOnline === false
+								? "The donation bin is offline. Please try again shortly or ask a staff member for help."
+								: "Click this button after inserting your item"}
 						</p>
 					</div>
 				)}

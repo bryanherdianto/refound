@@ -11,7 +11,6 @@ import {
 	User,
 	Gift,
 	CheckCircle2,
-	Sparkles,
 	Leaf,
 	ArrowRight,
 } from "lucide-react";
@@ -34,22 +33,12 @@ const steps = [
 	},
 	{
 		icon: User,
-		title: "Enter Your Details",
-		desc: "Provide your name and email to receive donation rewards",
-	},
-	{
-		icon: Gift,
-		title: "Get Your Reward!",
-		desc: "Earn points and recognition for your contribution",
+		title: "Confirm Your Details",
+		desc: "Sign in so your donation is recorded against your account",
 	},
 ];
 
 const benefits = [
-	{
-		icon: Sparkles,
-		title: "Earn Rewards",
-		desc: "Get points for every donation you make",
-	},
 	{
 		icon: CheckCircle2,
 		title: "AI Verification",
@@ -57,8 +46,8 @@ const benefits = [
 	},
 	{
 		icon: Leaf,
-		title: "Track Impact",
-		desc: "See how your donations help the community",
+		title: "Track Your Items",
+		desc: "Follow your donation once it is listed and claimed",
 	},
 ];
 

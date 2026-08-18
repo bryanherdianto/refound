@@ -41,6 +41,12 @@ class PickupPoint(str, Enum):
 # Nested Models
 # ---------------------------------------------------------------------------
 
+def _utcnow() -> datetime:
+    """Timezone-aware UTC now. Used everywhere so the collection never mixes
+    naive and aware datetimes (which would break Python-side comparisons)."""
+    return datetime.now(timezone.utc)
+
+
 class ClaimInfo(BaseModel):
     name: str
     email: EmailStr
@@ -48,7 +54,7 @@ class ClaimInfo(BaseModel):
     method: DeliveryMethod
     pickup_point: Optional[PickupPoint] = None
     address: Optional[str] = None
-    claimed_at: datetime = Field(default_factory=datetime.utcnow)
+    claimed_at: datetime = Field(default_factory=_utcnow)
     picked_up_at: Optional[datetime] = None
 
     class Config:
@@ -66,7 +72,7 @@ class ItemInDB(BaseModel):
     image: str = ""
     front_image: Optional[str] = None
     back_image: Optional[str] = None
-    detected_at: datetime = Field(default_factory=datetime.utcnow)
+    detected_at: datetime = Field(default_factory=_utcnow)
     status: ItemStatus = ItemStatus.waiting
     condition: str = ""
     category: str = ""
@@ -76,7 +82,6 @@ class ItemInDB(BaseModel):
     agreed_to_redistribution: bool = False
     claimed_by: Optional[ClaimInfo] = None
     assigned_institution: Optional[str] = None
-    reward_points: int = 0
 
     class Config:
         populate_by_name = True
@@ -99,6 +104,7 @@ class ItemResponse(BaseModel):
     size: ItemSize
     donor_name: Optional[str] = Field(None, alias="donorName")
     donor_email: Optional[str] = Field(None, alias="donorEmail")
+    assigned_to: Optional[str] = Field(None, alias="assignedTo")
     claimed_by: Optional[dict] = Field(None, alias="claimedBy")
 
     class Config:
@@ -131,13 +137,14 @@ class ItemResponse(BaseModel):
             image=doc.get("image", ""),
             frontImage=doc.get("front_image"),
             backImage=doc.get("back_image"),
-            detectedAt=doc.get("detected_at", datetime.now(timezone.utc)),
+            detectedAt=doc.get("detected_at", _utcnow()),
             status=doc.get("status", "waiting"),
             condition=doc.get("condition", ""),
             category=doc.get("category", ""),
             size=doc.get("size", "small"),
             donorName=doc.get("donor_name"),
             donorEmail=doc.get("donor_email"),
+            assignedTo=doc.get("assigned_institution"),
             claimedBy=doc.get("claimedBy"),
         )
 
@@ -145,16 +152,6 @@ class ItemResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Request Models
 # ---------------------------------------------------------------------------
-
-class DonateRequest(BaseModel):
-    """Form metadata for a donation (files sent separately as multipart)."""
-    size: ItemSize
-    donor_name: str
-    donor_email: EmailStr
-    agreed_to_redistribution: bool = False
-    description: Optional[str] = None
-    category: Optional[str] = None
-
 
 class ClaimRequest(BaseModel):
     """Body for claiming an item."""

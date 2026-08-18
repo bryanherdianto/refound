@@ -1,10 +1,8 @@
-from datetime import datetime
-
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 
 from database import get_items_collection
-from models.item import ClaimRequest, ItemResponse
+from models.item import ClaimRequest, ItemResponse, _utcnow
 
 router = APIRouter(prefix="/api/claim", tags=["Claim"])
 
@@ -42,7 +40,7 @@ async def claim_item(item_id: str, claim: ClaimRequest):
         "method": claim.method.value,
         "pickup_point": claim.pickup_point.value if claim.pickup_point else None,
         "address": claim.address,
-        "claimed_at": datetime.utcnow(),
+        "claimed_at": _utcnow(),
         "picked_up_at": None,
     }
 

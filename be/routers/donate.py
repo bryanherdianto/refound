@@ -1,11 +1,9 @@
-from datetime import datetime
-
 from bson import ObjectId
 from fastapi import APIRouter, Form, UploadFile, File, HTTPException
 from typing import Optional
 
 from database import get_items_collection
-from models.item import ItemSize, ItemResponse
+from models.item import ItemSize, ItemResponse, _utcnow
 from services.s3 import upload_image
 from services.gemini import analyze_photo
 
@@ -39,9 +37,8 @@ async def donate_item(
         "donor_name": donor_name,
         "donor_email": donor_email,
         "agreed_to_redistribution": agreed_to_redistribution,
-        "detected_at": datetime.utcnow(),
+        "detected_at": _utcnow(),
         "status": "available",
-        "reward_points": 10,
         "name": "",
         "image": "",
         "front_image": None,
@@ -69,8 +66,7 @@ async def donate_item(
         item_doc["image"] = front_url  # Use front image as main display
 
         # Analyze front photo with Gemini for auto-categorization
-        front_bytes = await photo_front.seek(0) or b""
-        # Re-read since upload consumed the stream
+        # Re-read since the S3 upload consumed the stream
         await photo_front.seek(0)
         front_bytes = await photo_front.read()
 

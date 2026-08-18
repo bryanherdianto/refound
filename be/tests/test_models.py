@@ -7,7 +7,7 @@ Validates:
 - ClaimInfo construction with validation
 - ItemResponse.from_db() conversion from MongoDB documents
 - camelCase alias serialization for the frontend
-- DonateRequest and ClaimRequest validation
+- ClaimRequest validation
 """
 
 import os
@@ -26,7 +26,6 @@ from models.item import (
     ClaimInfo,
     ItemInDB,
     ItemResponse,
-    DonateRequest,
     ClaimRequest,
     AdminStatusUpdate,
 )
@@ -136,7 +135,6 @@ def test_item_in_db_defaults():
     assert item.agreed_to_redistribution is False
     assert item.claimed_by is None
     assert item.assigned_institution is None
-    assert item.reward_points == 0
     assert isinstance(item.detected_at, datetime)
     print("  All defaults correct")
 
@@ -262,39 +260,6 @@ def test_item_response_camel_case_serialization():
     print("camelCase serialization passed\n")
 
 
-def test_donate_request():
-    """Test DonateRequest validation."""
-    print("--- Testing DonateRequest ---")
-
-    req = DonateRequest(
-        size=ItemSize.small,
-        donor_name="Bryan",
-        donor_email="bryan@example.com",
-        agreed_to_redistribution=True,
-        description="Blue pen",
-        category="Stationery",
-    )
-
-    assert req.size == ItemSize.small
-    assert req.donor_name == "Bryan"
-    assert req.agreed_to_redistribution is True
-    assert req.description == "Blue pen"
-    print("  Small item request: OK")
-
-    req2 = DonateRequest(
-        size=ItemSize.big,
-        donor_name="Emma",
-        donor_email="emma@example.com",
-    )
-    assert req2.size == ItemSize.big
-    assert req2.description is None
-    assert req2.category is None
-    assert req2.agreed_to_redistribution is False
-    print("  Big item request (defaults): OK")
-
-    print("DonateRequest passed\n")
-
-
 def test_claim_request():
     """Test ClaimRequest validation."""
     print("--- Testing ClaimRequest ---")
@@ -359,7 +324,6 @@ if __name__ == "__main__":
     test_item_in_db_defaults()
     test_item_response_from_db()
     test_item_response_camel_case_serialization()
-    test_donate_request()
     test_claim_request()
     test_admin_status_update()
 

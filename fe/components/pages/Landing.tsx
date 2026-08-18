@@ -2,15 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import {
-	Camera,
-	Users,
-	Heart,
-	QrCode,
-	Sparkles,
-	ArrowRight,
-	Quote,
-} from "lucide-react";
+import { Camera, Users, QrCode, Sparkles, ArrowRight } from "lucide-react";
 import { ImageWithFallback } from "@/components/ImageWithFallback";
 
 export function Landing() {
@@ -101,11 +93,11 @@ export function Landing() {
 						</span>
 						<h2 className="text-3xl md:text-4xl mb-4">How It Works</h2>
 						<p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-							Four simple steps to make a difference in your community
+							Three simple steps to make a difference in your community
 						</p>
 					</div>
 
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
 						{[
 							{
 								icon: QrCode,
@@ -128,14 +120,7 @@ export function Landing() {
 								color: "bg-[#e8f4ee]",
 								iconColor: "text-[#7b9e87]",
 							},
-							{
-								icon: Heart,
-								title: "Earn Rewards",
-								desc: "Get points and recognition for donations",
-								color: "bg-[#e8f4ee]",
-								iconColor: "text-[#7b9e87]",
-							},
-						].map((step, index) => (
+							].map((step, index) => (
 							<div
 								key={step.title}
 								className="group relative text-center p-6 md:p-8 rounded-2xl bg-white border border-[#1a365d]/5 hover:border-[#7b9e87]/30 hover:shadow-lg transition-all duration-300"
@@ -217,7 +202,7 @@ export function Landing() {
 						</span>
 						<h2 className="text-3xl md:text-4xl mb-4">Making a Difference</h2>
 						<p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-							Together, we're building a more sustainable and caring community
+							Together, we&apos;re building a more sustainable and caring community
 						</p>
 					</div>
 					<div className="bg-white rounded-3xl shadow-[0_8px_40px_-10px_rgba(26,54,93,0.12)] p-8 md:p-12">
@@ -256,71 +241,6 @@ export function Landing() {
 								</div>
 							))}
 						</div>
-					</div>
-				</div>
-
-				{/* Testimonials */}
-				<div className="mb-24 md:mb-32">
-					<div className="text-center mb-12 md:mb-16">
-						<span className="inline-block px-4 py-1.5 bg-[#e8f4ee] text-[#7b9e87] rounded-full text-sm font-medium mb-4">
-							Community Voices
-						</span>
-						<h2 className="text-3xl md:text-4xl mb-4">
-							What Our Community Says
-						</h2>
-						<p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-							Real stories from donors and recipients making an impact
-						</p>
-					</div>
-					<div className="grid md:grid-cols-3 gap-6 md:gap-8">
-						{[
-							{
-								quote:
-									"I donated my old textbooks and they found a new home within days. It's amazing to see how technology makes giving so seamless.",
-								author: "Sarah Chen",
-								role: "Donor",
-							},
-							{
-								quote:
-									"As a student on a tight budget, finding quality items here has been a lifesaver. The community support is incredible.",
-								author: "Marcus Johnson",
-								role: "Recipient",
-							},
-							{
-								quote:
-									"The AI detection made donating so easy. I just dropped off my items and the app notified me when someone claimed them.",
-								author: "Emma Rodriguez",
-								role: "Donor",
-							},
-						].map((testimonial, index) => (
-							<div
-								key={index}
-								className="bg-white rounded-2xl p-6 md:p-8 shadow-[0_8px_30px_-5px_rgba(26,54,93,0.08)] border border-[#1a365d]/5 hover:shadow-lg transition-all duration-300"
-							>
-								<Quote className="w-8 h-8 text-[#7b9e87] mb-4" />
-								<p className="text-muted-foreground leading-relaxed mb-6">
-									"{testimonial.quote}"
-								</p>
-								<div className="flex items-center gap-3">
-									<div className="w-10 h-10 rounded-full bg-[#e8f4ee] flex items-center justify-center">
-										<span className="text-[#7b9e87] font-semibold text-sm">
-											{testimonial.author
-												.split(" ")
-												.map((n) => n[0])
-												.join("")}
-										</span>
-									</div>
-									<div>
-										<p className="font-semibold text-[#1a365d]">
-											{testimonial.author}
-										</p>
-										<p className="text-sm text-muted-foreground">
-											{testimonial.role}
-										</p>
-									</div>
-								</div>
-							</div>
-						))}
 					</div>
 				</div>
 

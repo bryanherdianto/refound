@@ -1,4 +1,5 @@
 import { DonationItem, ClaimFormData, ItemStatus } from "@/types/donation";
+import { Institution } from "@/types/institution";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -8,12 +9,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function apiFetch<T>(
 	path: string,
-	options?: RequestInit
+	options?: RequestInit,
+	token?: string | null
 ): Promise<T> {
 	const res = await fetch(`${API_URL}${path}`, {
 		...options,
 		headers: {
 			...(options?.headers || {}),
+			...(token ? { Authorization: `Bearer ${token}` } : {}),
 		},
 	});
 
@@ -29,15 +32,36 @@ async function apiFetch<T>(
 // Items
 // ---------------------------------------------------------------------------
 
+/**
+ * The API returns dates as ISO strings. Revive them so components can call
+ * Date methods without each one remembering to convert.
+ */
+function reviveItem(raw: DonationItem): DonationItem {
+	return {
+		...raw,
+		detectedAt: new Date(raw.detectedAt),
+		claimedBy: raw.claimedBy
+			? {
+					...raw.claimedBy,
+					claimedAt: new Date(raw.claimedBy.claimedAt),
+					pickedUpAt: raw.claimedBy.pickedUpAt
+						? new Date(raw.claimedBy.pickedUpAt)
+						: undefined,
+				}
+			: undefined,
+	};
+}
+
 export async function fetchItems(
 	status?: ItemStatus
 ): Promise<DonationItem[]> {
 	const query = status ? `?status=${status}` : "";
-	return apiFetch<DonationItem[]>(`/api/items${query}`);
+	const items = await apiFetch<DonationItem[]>(`/api/items${query}`);
+	return items.map(reviveItem);
 }
 
 export async function fetchItem(id: string): Promise<DonationItem> {
-	return apiFetch<DonationItem>(`/api/items/${id}`);
+	return reviveItem(await apiFetch<DonationItem>(`/api/items/${id}`));
 }
 
 // ---------------------------------------------------------------------------
@@ -48,8 +72,6 @@ export interface DonateSmallPayload {
 	donorName: string;
 	donorEmail: string;
 	agreedToRedistribution: boolean;
-	description?: string;
-	category?: string;
 }
 
 export async function donateSmallItem(
@@ -63,9 +85,6 @@ export async function donateSmallItem(
 		"agreed_to_redistribution",
 		String(data.agreedToRedistribution)
 	);
-	if (data.description) form.append("description", data.description);
-	if (data.category) form.append("category", data.category);
-
 	return apiFetch<DonationItem>("/api/donate", {
 		method: "POST",
 		body: form,
@@ -129,50 +148,88 @@ export async function claimItem(
 export async function fetchTracking(
 	email: string
 ): Promise<DonationItem[]> {
-	return apiFetch<DonationItem[]>(
+	const items = await apiFetch<DonationItem[]>(
 		`/api/tracking?email=${encodeURIComponent(email)}`
 	);
+	return items.map(reviveItem);
 }
 
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
 
-export async function adminListItems(): Promise<DonationItem[]> {
-	return apiFetch<DonationItem[]>("/api/admin/items");
+export async function adminListItems(
+	token: string | null
+): Promise<DonationItem[]> {
+	const items = await apiFetch<DonationItem[]>(
+		"/api/admin/items",
+		undefined,
+		token
+	);
+	return items.map(reviveItem);
 }
 
 export async function adminUpdateStatus(
+	token: string | null,
 	itemId: string,
 	status: ItemStatus,
 	institutionName?: string
 ): Promise<DonationItem> {
-	return apiFetch<DonationItem>(`/api/admin/items/${itemId}/status`, {
-		method: "PATCH",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			status,
-			institution_name: institutionName || null,
-		}),
-	});
+	return apiFetch<DonationItem>(
+		`/api/admin/items/${itemId}/status`,
+		{
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				status,
+				institution_name: institutionName || null,
+			}),
+		},
+		token
+	);
 }
 
 export async function adminAssignItem(
+	token: string | null,
 	itemId: string,
 	institutionName: string
 ): Promise<DonationItem> {
+	// institution_name is a query param on the backend, not a body field.
 	return apiFetch<DonationItem>(
 		`/api/admin/items/${itemId}/assign?institution_name=${encodeURIComponent(institutionName)}`,
-		{ method: "POST" }
+		{ method: "POST" },
+		token
 	);
 }
 
 export async function adminCompleteItem(
+	token: string | null,
 	itemId: string
 ): Promise<DonationItem> {
-	return apiFetch<DonationItem>(`/api/admin/items/${itemId}/complete`, {
-		method: "PATCH",
-	});
+	return apiFetch<DonationItem>(
+		`/api/admin/items/${itemId}/complete`,
+		{ method: "PATCH" },
+		token
+	);
+}
+
+export async function adminMarkPickedUp(
+	token: string | null,
+	itemId: string
+): Promise<DonationItem> {
+	return apiFetch<DonationItem>(
+		`/api/admin/items/${itemId}/pickup`,
+		{ method: "PATCH" },
+		token
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Institutions
+// ---------------------------------------------------------------------------
+
+export async function fetchInstitutions(): Promise<Institution[]> {
+	return apiFetch<Institution[]>("/api/institutions");
 }
 
 // ---------------------------------------------------------------------------

@@ -11,45 +11,47 @@ import {
 	ArrowDownWideNarrow,
 	ArrowUpWideNarrow,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { fetchItems } from "@/lib/api";
 
 type FilterType = "all" | "available" | "claimed";
 type SortType = "newest" | "oldest";
 
 export function Items() {
-	const router = useRouter();
 	const [filter, setFilter] = useState<FilterType>("all");
 	const [sort, setSort] = useState<SortType>("newest");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [items, setItems] = useState<DonationItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
-	// Fetch items from MongoDB via FastAPI
 	useEffect(() => {
-		const fetchItems = async () => {
+		let cancelled = false;
+
+		const load = async () => {
 			try {
-				const response = await fetch("http://localhost:8000/api/items");
-				if (!response.ok) throw new Error("Failed to fetch");
-				const data = await response.json();
-
-				// Ensure dates are actual Date objects
-				const formattedData = data.map((item: any) => ({
-					...item,
-					detectedAt: new Date(item.detectedAt),
-				}));
-
-				setItems(formattedData);
-			} catch (error) {
-				console.error("Error fetching items from MongoDB:", error);
+				const data = await fetchItems();
+				if (cancelled) return;
+				setItems(data);
+				setError(null);
+			} catch (err) {
+				if (cancelled) return;
+				setError(
+					err instanceof Error
+						? err.message
+						: "Could not load items. Please try again.",
+				);
 			} finally {
-				setIsLoading(false);
+				if (!cancelled) setIsLoading(false);
 			}
 		};
 
-		fetchItems();
-		// Refresh every 15 seconds to catch new ESP32 captures
-		const interval = setInterval(fetchItems, 15000);
-		return () => clearInterval(interval);
+		load();
+		// Refresh periodically to pick up new ESP32 captures
+		const interval = setInterval(load, 15000);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
 	}, []);
 
 	// Count items for each filter
@@ -99,14 +101,6 @@ export function Items() {
 
 		return result;
 	}, [items, filter, searchQuery, sort]);
-
-	// Get page title based on filter
-	const pageTitle =
-		filter === "all"
-			? "All Items"
-			: filter === "available"
-				? "Available Items"
-				: "Claimed Items";
 
 	return (
 		<div>
@@ -188,11 +182,23 @@ export function Items() {
 				</div>
 
 				{/* Items Grid */}
-				{isLoading ? (
+				{error && !isLoading ? (
+					<div className="text-center py-16 px-4">
+						<div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+							<PackageOpen className="w-10 h-10 text-red-500" />
+						</div>
+						<h3 className="text-xl font-semibold text-[#1a365d] mb-2">
+							Couldn&apos;t load items
+						</h3>
+						<p className="text-muted-foreground mb-6 max-w-md mx-auto">
+							{error}
+						</p>
+					</div>
+				) : isLoading ? (
 					<div className="flex flex-col items-center justify-center py-20">
 						<div className="h-10 w-10 animate-spin rounded-full border-4 border-[#7b9e87] border-t-transparent shadow-lg shadow-[#7b9e87]/10"></div>
 						<p className="mt-4 text-[#1a365d] font-medium animate-pulse">
-							Syncing with MongoDB...
+							Loading items...
 						</p>
 					</div>
 				) : filteredItems.length > 0 ? (
